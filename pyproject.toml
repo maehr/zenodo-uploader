@@ -1,0 +1,68 @@
+[project]
+name = "zenodo-uploader"
+version = "0.1.0"
+description = "General-purpose CLI to mirror DOIs and upload records to Zenodo via its REST API"
+readme = "README.md"
+authors = [
+    { name = "Moritz Mähr", email = "14755525+maehr@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+keywords = ["zenodo", "doi", "datacite", "open-science", "research-data"]
+dependencies = [
+    "httpx2>=2.5",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "structlog>=24.4",
+    "typer>=0.15",
+]
+
+[project.urls]
+Repository = "https://github.com/maehr/zenodo-uploader"
+Issues = "https://github.com/maehr/zenodo-uploader/issues"
+
+[project.scripts]
+zenodo-uploader = "zenodo_uploader.cli:app"
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.4",
+    "git-cliff>=2.10",
+    "prek>=0.2",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.14",
+    "ty>=0.0.1a21",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ty.src]
+# The example is a standalone PEP 723 script with its own dependencies.
+exclude = ["examples"]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules --cov=zenodo_uploader --cov-report=term-missing --cov-fail-under=100"
+testpaths = ["tests", "src"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_provider = "pep621"
+update_changelog_on_bump = false

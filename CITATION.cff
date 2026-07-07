@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: zenodo-uploader
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Moritz
+    family-names: Mähr
+    email: moritz.maehr@gmail.com
+    orcid: 'https://orcid.org/0000-0002-1367-1618'
+    affiliation: University of Bern
+repository-code: 'https://github.com/maehr/zenodo-uploader'
+url: 'https://github.com/maehr/zenodo-uploader'
+abstract: >-
+  Mirror DOIs and upload records to Zenodo from the command line. Fetches metadata
+  from DataCite (falling back to Crossref), maps it onto Zenodo deposit metadata,
+  attaches files, and creates or publishes depositions via the Zenodo REST API.
+keywords:
+  - zenodo
+  - doi
+  - datacite
+  - open-science
+  - research-data
+license: AGPL-3.0-only
+version: 0.1.0
+# Add the Zenodo concept DOI here after the first archived release:
+# doi: 10.5281/zenodo.XXXXXXX
