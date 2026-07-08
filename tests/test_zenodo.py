@@ -127,3 +127,45 @@ def test_error_body_included(client: ZenodoClient, fake_zenodo: FakeZenodo) -> N
     fake_zenodo.fail_next = 400
     with client, pytest.raises(ZenodoError, match="400"):
         client.create_deposition(_metadata())
+
+
+def test_get_and_update_deposition(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        fetched = client.get_deposition(dep["id"])
+        assert fetched["id"] == dep["id"]
+        updated = client.update_deposition(
+            dep["id"], {"title": "New", "upload_type": "publication"}
+        )
+        assert updated["metadata"]["title"] == "New"
+    assert fake_zenodo.depositions[dep["id"]]["metadata"]["title"] == "New"
+
+
+def test_update_deposition_with_model(client: ZenodoClient) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        updated = client.update_deposition(dep["id"], _metadata("10.9/z"))
+    assert updated["metadata"]["doi"] == "10.9/z"
+
+
+def test_community_uuid(client: ZenodoClient) -> None:
+    with client:
+        assert client.community_uuid("some-slug") == "uuid-of-community"
+
+
+def test_set_review_and_submit(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.set_community_review(dep["id"], "uuid-of-community")
+        assert fake_zenodo.reviews[dep["id"]]["receiver"] == {"community": "uuid-of-community"}
+        assert dep["id"] not in fake_zenodo.submitted
+        client.submit_review(dep["id"], comment="Please add")
+    assert dep["id"] in fake_zenodo.submitted
+
+
+def test_submit_review_no_comment(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.set_community_review(dep["id"], "uuid-of-community")
+        client.submit_review(dep["id"])
+    assert dep["id"] in fake_zenodo.submitted

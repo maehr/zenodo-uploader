@@ -28,8 +28,11 @@ class Settings(BaseSettings):
     def token_for(self, sandbox: bool) -> str:
         """Return the token for the chosen instance or raise a helpful error.
 
+        Surrounding whitespace (e.g. a trailing newline from a ``.env`` file) is
+        stripped so the token is safe to put in an HTTP header.
+
         Examples:
-            >>> Settings(zenodo_sandbox_token="s", _env_file=None).token_for(sandbox=True)
+            >>> Settings(zenodo_sandbox_token="s\\n", _env_file=None).token_for(sandbox=True)
             's'
             >>> Settings(_env_file=None).token_for(sandbox=False)
             Traceback (most recent call last):
@@ -39,6 +42,8 @@ deposit:write and deposit:actions at https://zenodo.org/account/settings/applica
         """
         name = "ZENODO_SANDBOX_TOKEN" if sandbox else "ZENODO_TOKEN"
         token = self.zenodo_sandbox_token if sandbox else self.zenodo_token
+        if token:
+            token = token.strip()
         if not token:
             base = ZENODO_SANDBOX_URL if sandbox else ZENODO_URL
             raise ValueError(

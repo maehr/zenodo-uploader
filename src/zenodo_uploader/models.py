@@ -68,6 +68,7 @@ class RelatedIdentifier(BaseModel):
     relation: RelationType
     identifier: str
     resource_type: str | None = None
+    scheme: str | None = None
 
 
 class WorkRecord(BaseModel):
@@ -114,6 +115,9 @@ class ZenodoMetadata(BaseModel):
     language: str | None = None
     imprint_publisher: str | None = None
     imprint_place: str | None = None
+    imprint_isbn: str | None = None
+    partof_title: str | None = None
+    partof_pages: str | None = None
     keywords: list[str] = Field(default_factory=list)
     communities: list[str] = Field(default_factory=list)
     related_identifiers: list[RelatedIdentifier] = Field(default_factory=list)
@@ -157,6 +161,12 @@ class ZenodoMetadata(BaseModel):
             metadata["imprint_publisher"] = self.imprint_publisher
         if self.imprint_place:
             metadata["imprint_place"] = self.imprint_place
+        if self.imprint_isbn:
+            metadata["imprint_isbn"] = self.imprint_isbn
+        if self.partof_title:
+            metadata["partof_title"] = self.partof_title
+        if self.partof_pages:
+            metadata["partof_pages"] = self.partof_pages
         if self.keywords:
             metadata["keywords"] = list(self.keywords)
         if self.communities:
@@ -165,6 +175,7 @@ class ZenodoMetadata(BaseModel):
             metadata["related_identifiers"] = [
                 {"relation": r.relation, "identifier": r.identifier}
                 | ({"resource_type": r.resource_type} if r.resource_type else {})
+                | ({"scheme": r.scheme} if r.scheme else {})
                 for r in self.related_identifiers
             ]
         return {"metadata": metadata}

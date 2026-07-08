@@ -111,6 +111,71 @@ class ZenodoClient:
         log.info("deposition created", id=deposition.get("id"))
         return deposition
 
+    def get_deposition(self, deposition_id: int) -> dict[str, Any]:
+        """Fetch a single deposition (draft or published)."""
+        response = self._request("GET", f"{self.base_url}/api/deposit/depositions/{deposition_id}")
+        deposition: dict[str, Any] = self._json_or_raise(response)
+        return deposition
+
+    def update_deposition(
+        self, deposition_id: int, metadata: ZenodoMetadata | Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Replace a draft's metadata (PUT); files are left untouched."""
+        payload = (
+            metadata.to_payload()
+            if isinstance(metadata, ZenodoMetadata)
+            else {"metadata": dict(metadata)}
+        )
+        response = self._request(
+            "PUT", f"{self.base_url}/api/deposit/depositions/{deposition_id}", json=payload
+        )
+        deposition: dict[str, Any] = self._json_or_raise(response)
+        log.info("deposition updated", id=deposition_id)
+        return deposition
+
+    def community_uuid(self, slug: str) -> str:
+        """Resolve a community slug to its InvenioRDM UUID."""
+        response = self._request("GET", f"{self.base_url}/api/communities/{slug}")
+        community: dict[str, Any] = self._json_or_raise(response)
+        return str(community["id"])
+
+    def set_community_review(self, record_id: int, community_uuid: str) -> dict[str, Any]:
+        """Attach a pending community-submission review to a draft (no submit).
+
+        On current (InvenioRDM) Zenodo the legacy ``communities`` metadata field
+        is ignored; a record joins a community through a review request. This
+        creates (but does not submit) that request, leaving the draft private.
+        """
+        review: dict[str, Any] = self._json_or_raise(
+            self._request(
+                "PUT",
+                f"{self.base_url}/api/records/{record_id}/draft/review",
+                json={
+                    "receiver": {"community": community_uuid},
+                    "type": "community-submission",
+                },
+            )
+        )
+        log.info("community review attached", id=record_id, community=community_uuid)
+        return review
+
+    def submit_review(self, record_id: int, comment: str = "") -> dict[str, Any]:
+        """Submit a draft's attached community review for curator acceptance.
+
+        This is the publish step: the record becomes a submission awaiting the
+        community's acceptance. Requires :meth:`set_community_review` first.
+        """
+        body = {"payload": {"content": comment, "format": "html"}} if comment else {}
+        review: dict[str, Any] = self._json_or_raise(
+            self._request(
+                "POST",
+                f"{self.base_url}/api/records/{record_id}/draft/actions/submit-review",
+                json=body,
+            )
+        )
+        log.info("submitted for community review", id=record_id)
+        return review
+
     def upload_file(self, deposition: dict[str, Any], path: Path) -> dict[str, Any]:
         """Upload a local file into the deposition's bucket."""
         bucket_url = deposition["links"]["bucket"]

@@ -50,6 +50,8 @@ class FakeZenodo:
         self.depositions: dict[int, dict[str, Any]] = {}
         self.files: dict[int, list[str]] = {}
         self.published: set[int] = set()
+        self.reviews: dict[int, dict[str, Any]] = {}
+        self.submitted: set[int] = set()
         self.next_id = 100
         self.fail_next: int | None = None
 
@@ -68,9 +70,35 @@ class FakeZenodo:
             return self._upload(request)
         if path.endswith("/actions/publish"):
             return self._publish(request)
+        if path.endswith("/draft/review"):
+            return self._set_review(request)
+        if path.endswith("/draft/actions/submit-review"):
+            return self._submit_review(request)
+        if path.startswith("/api/communities/"):
+            return httpx2.Response(200, request=request, json={"id": "uuid-of-community"})
+        if path.startswith("/api/deposit/depositions/") and request.method == "GET":
+            dep_id = int(path.rsplit("/", 1)[-1])
+            return httpx2.Response(200, request=request, json=self.depositions[dep_id])
+        if path.startswith("/api/deposit/depositions/") and request.method == "PUT":
+            return self._update(request)
         if path.startswith("/api/deposit/depositions/") and request.method == "DELETE":
             return self._delete(request)
         return httpx2.Response(404, request=request, json={})
+
+    def _update(self, request: httpx2.Request) -> httpx2.Response:
+        dep_id = int(request.url.path.rsplit("/", 1)[-1])
+        self.depositions[dep_id]["metadata"] = json.loads(request.content)["metadata"]
+        return httpx2.Response(200, request=request, json=self.depositions[dep_id])
+
+    def _set_review(self, request: httpx2.Request) -> httpx2.Response:
+        record_id = int(request.url.path.split("/")[3])
+        self.reviews[record_id] = json.loads(request.content)
+        return httpx2.Response(201, request=request, json={"id": "review-1"})
+
+    def _submit_review(self, request: httpx2.Request) -> httpx2.Response:
+        record_id = int(request.url.path.split("/")[3])
+        self.submitted.add(record_id)
+        return httpx2.Response(200, request=request, json={"status": "submitted"})
 
     def _search_records(self, request: httpx2.Request) -> httpx2.Response:
         doi = request.url.params["q"].removeprefix('doi:"').removesuffix('"')

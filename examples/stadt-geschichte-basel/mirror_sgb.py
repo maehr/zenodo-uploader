@@ -83,6 +83,11 @@ def main() -> int:
             "official full-volume PDFs"
         ),
     )
+    parser.add_argument(
+        "--pdf-only",
+        action="store_true",
+        help="attach only the PDF to each chapter record (skip the minimal-HTML edition)",
+    )
     args = parser.parse_args()
     files_dir = args.out / "files"
 
@@ -103,7 +108,7 @@ def main() -> int:
                     args.source / "pdf" / f"volume-{volume:02d}" / "chapters" / f"{suffix}.pdf"
                 )
                 html_path = args.source / "html" / f"volume-{volume:02d}" / f"{suffix}.html"
-                if not pdf_path.exists() or not html_path.exists():
+                if not pdf_path.exists() or (not args.pdf_only and not html_path.exists()):
                     raise FileNotFoundError(f"{pdf_path} or {html_path} missing in --source")
             else:
                 attributes = client.get(DATACITE_API + doi).json()["data"]["attributes"]
@@ -111,11 +116,13 @@ def main() -> int:
                 pdf_path = files_dir / f"volume-{volume:02d}" / f"{suffix}.pdf"
                 html_path = files_dir / f"volume-{volume:02d}" / f"{suffix}.html"
                 download(client, pdf_galley_url(client, landing_url), pdf_path)
-                download(client, MINIMAL_HTML_URL.format(volume=volume, suffix=suffix), html_path)
+                if not args.pdf_only:
+                    download(
+                        client, MINIMAL_HTML_URL.format(volume=volume, suffix=suffix), html_path
+                    )
             volume_chapters.setdefault(volume, []).append((chapter, pdf_path))
-            manifest.append(
-                {"doi": doi, "files": [str(pdf_path), str(html_path)], "community": COMMUNITY}
-            )
+            files = [str(pdf_path)] if args.pdf_only else [str(pdf_path), str(html_path)]
+            manifest.append({"doi": doi, "files": files, "community": COMMUNITY})
 
     for volume, doi in sorted(volume_dois.items()):
         suffix, _, _ = parse_doi(doi)

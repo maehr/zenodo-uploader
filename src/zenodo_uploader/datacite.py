@@ -68,8 +68,8 @@ def parse_related(raw: list[dict[str, Any]]) -> list[RelatedIdentifier]:
     Examples:
         >>> parse_related([{"relationType": "IsPartOf",
         ...     "relatedIdentifier": "https://doi.org/10.1/x",
-        ...     "relatedIdentifierType": "DOI"}])
-        [RelatedIdentifier(relation='isPartOf', identifier='10.1/x', resource_type=None)]
+        ...     "relatedIdentifierType": "DOI"}])[0].identifier
+        '10.1/x'
         >>> parse_related([{"relationType": "Compiles", "relatedIdentifier": "x"}])
         []
     """

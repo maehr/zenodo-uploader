@@ -216,3 +216,33 @@ def test_parse_datacite_full_issued_date() -> None:
     )
     assert record.publication_date == "2024-10-28"
     assert work_to_zenodo(record).publication_date == "2024-10-28"
+
+
+def test_payload_book_imprint_and_alternate_ids() -> None:
+    metadata = ZenodoMetadata(
+        title="B",
+        upload_type="publication",
+        publication_type="book",
+        description="D",
+        creators=[Creator(name="Doe, Jane")],
+        publication_date="2024-01-01",
+        imprint_isbn="978-3-03969-003-9",
+        imprint_place="Basel",
+        partof_title="The Book",
+        partof_pages="1-20",
+        related_identifiers=[
+            RelatedIdentifier(
+                relation="isAlternateIdentifier", identifier="978-3-03969-003-9", scheme="isbn"
+            ),
+            RelatedIdentifier(
+                relation="hasPart", identifier="10.1/c", resource_type="publication-section"
+            ),
+        ],
+    )
+    m = metadata.to_payload()["metadata"]
+    assert m["imprint_isbn"] == "978-3-03969-003-9"
+    assert m["imprint_place"] == "Basel"
+    assert m["partof_title"] == "The Book" and m["partof_pages"] == "1-20"
+    rel = {r["identifier"]: r for r in m["related_identifiers"]}
+    assert rel["978-3-03969-003-9"]["scheme"] == "isbn"
+    assert rel["10.1/c"]["resource_type"] == "publication-section"
