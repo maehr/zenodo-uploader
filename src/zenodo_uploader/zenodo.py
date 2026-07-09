@@ -39,7 +39,9 @@ class ZenodoClient:
         self._last_request = 0.0
         self._client = httpx2.Client(
             headers={"Authorization": f"Bearer {token}"},
-            timeout=httpx2.Timeout(60.0),
+            # Generous read/write timeouts: SGB volume PDFs run to ~120 MB and
+            # overrun a flat 60 s timeout during the bucket upload.
+            timeout=httpx2.Timeout(60.0, read=300.0, write=600.0),
             transport=transport,
         )
 
