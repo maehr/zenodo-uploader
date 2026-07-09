@@ -176,6 +176,33 @@ class ZenodoClient:
         log.info("submitted for community review", id=record_id)
         return review
 
+    def get_review(self, record_id: int) -> dict[str, Any] | None:
+        """Return the community review attached to a draft, or None if absent.
+
+        The returned request carries the target community under
+        ``receiver.community`` (a UUID), which lets callers re-attach the same
+        community after cancelling a review.
+        """
+        response = self._request("GET", f"{self.base_url}/api/records/{record_id}/draft/review")
+        if response.status_code == 404:
+            return None
+        review: dict[str, Any] = self._json_or_raise(response)
+        return review
+
+    def cancel_review(self, record_id: int) -> None:
+        """Withdraw a draft's community review so its files become editable again.
+
+        Deletes the pending or submitted community-submission review attached to
+        the draft, returning it to a private, editable state (the counterpart of
+        :meth:`set_community_review`/:meth:`submit_review`). A missing review is
+        treated as success, so this is safe to call unconditionally before
+        replacing files.
+        """
+        response = self._request("DELETE", f"{self.base_url}/api/records/{record_id}/draft/review")
+        if response.status_code not in (200, 204, 404):
+            raise ZenodoError(f"cancelling review for {record_id} failed: {response.status_code}")
+        log.info("review cancelled", id=record_id)
+
     def upload_file(self, deposition: dict[str, Any], path: Path) -> dict[str, Any]:
         """Upload a local file into the deposition's bucket."""
         bucket_url = deposition["links"]["bucket"]
@@ -184,6 +211,17 @@ class ZenodoClient:
         result: dict[str, Any] = self._json_or_raise(response)
         log.info("file uploaded", file=path.name, size=result.get("size"))
         return result
+
+    def delete_file(self, deposition: dict[str, Any], filename: str) -> None:
+        """Delete a file from a draft's bucket (no-op if it is absent)."""
+        bucket_url = deposition["links"]["bucket"]
+        response = self._request("DELETE", f"{bucket_url}/{filename}")
+        if response.status_code not in (204, 404):
+            raise ZenodoError(
+                f"deleting file {filename!r} from {deposition.get('id')} failed: "
+                f"{response.status_code}"
+            )
+        log.info("file deleted", file=filename)
 
     def publish(self, deposition_id: int) -> dict[str, Any]:
         """Publish a draft deposition. Published records cannot be deleted."""

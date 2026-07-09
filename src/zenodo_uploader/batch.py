@@ -96,6 +96,79 @@ def mirror_entry(
     )
 
 
+def resync_entry(
+    client: ZenodoClient,
+    entry: ManifestEntry,
+    *,
+    resubmit: bool = True,
+) -> dict[str, Any]:
+    """Replace a submitted/draft deposition's files with the manifest's files.
+
+    Used to push updated (e.g. metadata-enhanced) files onto a record that is
+    under community review but not yet published: it withdraws the review,
+    swaps each file in place (delete then re-upload, keyed by file name), and
+    by default re-submits the review. No new version is created and the DOI is
+    preserved. Published records are left untouched.
+    """
+    if client.find_records_by_doi(entry.doi):
+        log.info("already published, skipping", doi=entry.doi)
+        return _state_row("exists")
+    drafts = client.find_depositions_by_doi(entry.doi)
+    if not drafts:
+        return _state_row("error", error="no draft to resync")
+    deposition = drafts[0]
+    dep_id = deposition["id"]
+    # Capture the target community before cancelling: submit_review requires an
+    # attached review, and cancel_review deletes it. Prefer the manifest's
+    # community, otherwise fall back to the one the draft is already under.
+    community_uuid: str | None = None
+    if resubmit:
+        if entry.community:
+            community_uuid = client.community_uuid(entry.community)
+        elif review := client.get_review(dep_id):
+            community_uuid = review.get("receiver", {}).get("community")
+        if not community_uuid:
+            return _state_row("error", error="cannot resubmit review without a community")
+    client.cancel_review(dep_id)
+    for path in entry.files:
+        client.delete_file(deposition, path.name)
+        client.upload_file(deposition, path)
+    if not resubmit:
+        return _state_row("draft", deposition_id=dep_id)
+    assert community_uuid is not None  # guaranteed by the resubmit guard above
+    client.set_community_review(dep_id, community_uuid)
+    client.submit_review(dep_id)
+    return _state_row("resynced", deposition_id=dep_id)
+
+
+def run_resync(
+    client: ZenodoClient,
+    entries: list[ManifestEntry],
+    state_path: Path,
+    *,
+    resubmit: bool = True,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Resync every manifest entry's files, resuming from the state file."""
+    state = load_state(state_path)
+    done = 0
+    for entry in entries:
+        row = state.get(entry.doi)
+        if row and row.get("status") in ("resynced", "exists", "published"):
+            continue
+        if limit is not None and done >= limit:
+            break
+        log.info("resyncing", doi=entry.doi)
+        try:
+            state[entry.doi] = resync_entry(client, entry, resubmit=resubmit)
+        except Exception as exc:
+            state[entry.doi] = _state_row("error", error=str(exc))
+            log.error("failed", doi=entry.doi, error=str(exc))
+        save_state(state_path, state)
+        done += 1
+    return state
+
+
 def run_batch(
     client: ZenodoClient,
     datacite_client: Any,
