@@ -13,10 +13,36 @@ from zenodo_uploader.batch import (
     load_manifest,
     load_state,
     mirror_entry,
+    resync_entry,
     run_batch,
+    run_resync,
     save_state,
 )
 from zenodo_uploader.zenodo import ZenodoClient
+
+
+def _submitted_draft(
+    client: ZenodoClient, doi: str, filename: str, content: bytes, tmp_path: Path
+) -> dict:
+    """Create a draft with one file and an outstanding community review."""
+    from zenodo_uploader.models import Creator, ZenodoMetadata
+
+    dep = client.create_deposition(
+        ZenodoMetadata(
+            title="T",
+            upload_type="publication",
+            description="D",
+            creators=[Creator(name="Doe, Jane")],
+            publication_date="2024-01-01",
+            doi=doi,
+        )
+    )
+    original = tmp_path / filename
+    original.write_bytes(content)
+    client.upload_file(dep, original)
+    client.set_community_review(dep["id"], client.community_uuid("stadt-geschichte-basel"))
+    client.submit_review(dep["id"])
+    return dep
 
 
 def _entry(tmp_path: Path, doi: str = "10.21255/sgb-03.05-238056") -> ManifestEntry:
@@ -105,3 +131,156 @@ def test_run_batch_limit_and_draft_skip(
         state = run_batch(client, datacite_client, [first, second], state_path)
         assert state[second.doi]["status"] == "draft"
         assert len(fake_zenodo.depositions) == 2
+
+
+def test_resync_entry_swaps_file_and_resubmits(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    dep = _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced], community="stadt-geschichte-basel")
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "resynced"
+    # Same file name, replaced in place (not duplicated) and re-submitted.
+    assert fake_zenodo.files[dep["id"]] == ["chapter.pdf"]
+    assert dep["id"] in fake_zenodo.submitted
+
+
+def test_resync_entry_without_community_still_submits(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    dep = _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced])  # no community override
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "resynced"
+    # Community is recovered from the draft's existing review before cancelling.
+    assert dep["id"] in fake_zenodo.submitted
+
+
+def test_resync_entry_errors_when_no_community_available(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    from zenodo_uploader.models import Creator, ZenodoMetadata
+
+    doi = "10.21255/sgb-03.05-238056"
+    dep = client.create_deposition(
+        ZenodoMetadata(
+            title="T",
+            upload_type="publication",
+            description="D",
+            creators=[Creator(name="Doe, Jane")],
+            publication_date="2024-01-01",
+            doi=doi,
+        )
+    )
+    original = tmp_path / "chapter.pdf"
+    original.write_bytes(b"original")
+    client.upload_file(dep, original)  # a draft with a file but no review attached
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced])  # no community, no review to fall back to
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "error"
+    # Bailed before cancelling/swapping, so the original file is untouched.
+    assert fake_zenodo.files[dep["id"]] == ["chapter.pdf"]
+
+
+def test_run_resync_skips_published(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced], community="stadt-geschichte-basel")
+    state_path = tmp_path / "state.json"
+    save_state(
+        state_path,
+        {doi: {"status": "published", "record_url": "https://zenodo.example/records/1"}},
+    )
+    with client:
+        state = run_resync(client, [entry], state_path)
+    # A published row is terminal: left untouched, not overwritten to "exists".
+    assert state[doi]["status"] == "published"
+    assert state[doi]["record_url"] == "https://zenodo.example/records/1"
+
+
+def test_resync_entry_skips_published(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    dep = _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    fake_zenodo.published.add(dep["id"])
+    entry = ManifestEntry(doi=doi, files=[tmp_path / "chapter.pdf"], community="x")
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "exists"
+
+
+def test_resync_entry_errors_without_draft(client: ZenodoClient, tmp_path: Path) -> None:
+    entry = ManifestEntry(doi="10.1/none", files=[tmp_path / "chapter.pdf"])
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "error"
+
+
+def test_resync_entry_no_resubmit_leaves_draft(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    dep = _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced], community="stadt-geschichte-basel")
+    with client:
+        row = resync_entry(client, entry, resubmit=False)
+    assert row["status"] == "draft"
+    # Review withdrawn and not re-submitted, so the draft is editable/private.
+    assert dep["id"] not in fake_zenodo.submitted
+
+
+def test_run_resync_records_errors_and_honours_limit(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    # First entry points at a missing file -> upload raises -> recorded as error.
+    broken = ManifestEntry(
+        doi=doi, files=[tmp_path / "missing.pdf"], community="stadt-geschichte-basel"
+    )
+    second = ManifestEntry(doi="10.1/other", files=[tmp_path / "missing.pdf"])
+    state_path = tmp_path / "state.json"
+    with client:
+        state = run_resync(client, [broken, second], state_path, limit=1)
+    assert state[doi]["status"] == "error"
+    assert "10.1/other" not in state  # limit=1 stopped before the second entry
+
+
+def test_run_resync_resumes(client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced], community="stadt-geschichte-basel")
+    state_path = tmp_path / "state.json"
+    with client:
+        state = run_resync(client, [entry], state_path)
+        assert state[doi]["status"] == "resynced"
+        # Resume: already-resynced entries are skipped (no second submit).
+        fake_zenodo.submitted.discard(state[doi]["deposition_id"])
+        run_resync(client, [entry], state_path)
+    assert state[doi]["deposition_id"] not in fake_zenodo.submitted

@@ -169,3 +169,51 @@ def test_submit_review_no_comment(client: ZenodoClient, fake_zenodo: FakeZenodo)
         client.set_community_review(dep["id"], "uuid-of-community")
         client.submit_review(dep["id"])
     assert dep["id"] in fake_zenodo.submitted
+
+
+def test_cancel_review(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.set_community_review(dep["id"], "uuid-of-community")
+        client.submit_review(dep["id"])
+        assert dep["id"] in fake_zenodo.submitted
+        client.cancel_review(dep["id"])
+    assert dep["id"] not in fake_zenodo.submitted
+    assert dep["id"] not in fake_zenodo.reviews
+
+
+def test_cancel_review_without_review_is_noop(client: ZenodoClient) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.cancel_review(dep["id"])  # no review attached; must not raise
+
+
+def test_delete_file(client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        f = tmp_path / "a.pdf"
+        f.write_bytes(b"x")
+        client.upload_file(dep, f)
+        assert fake_zenodo.files[dep["id"]] == ["a.pdf"]
+        client.delete_file(dep, "a.pdf")
+    assert fake_zenodo.files[dep["id"]] == []
+
+
+def test_delete_missing_file_is_noop(client: ZenodoClient) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.delete_file(dep, "absent.pdf")  # 404 tolerated
+
+
+def test_cancel_review_error_raises(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    fake_zenodo.fail_next = 403
+    with client, pytest.raises(ZenodoError, match="cancelling review"):
+        client.cancel_review(1)
+
+
+def test_delete_file_error_raises(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        fake_zenodo.fail_next = 403
+        with pytest.raises(ZenodoError, match="deleting file"):
+            client.delete_file(dep, "a.pdf")
