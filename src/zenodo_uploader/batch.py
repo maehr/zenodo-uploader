@@ -118,14 +118,24 @@ def resync_entry(
         return _state_row("error", error="no draft to resync")
     deposition = drafts[0]
     dep_id = deposition["id"]
+    # Capture the target community before cancelling: submit_review requires an
+    # attached review, and cancel_review deletes it. Prefer the manifest's
+    # community, otherwise fall back to the one the draft is already under.
+    community_uuid: str | None = None
+    if resubmit:
+        if entry.community:
+            community_uuid = client.community_uuid(entry.community)
+        elif review := client.get_review(dep_id):
+            community_uuid = review.get("receiver", {}).get("community")
+        if not community_uuid:
+            return _state_row("error", error="cannot resubmit review without a community")
     client.cancel_review(dep_id)
     for path in entry.files:
         client.delete_file(deposition, path.name)
         client.upload_file(deposition, path)
     if not resubmit:
         return _state_row("draft", deposition_id=dep_id)
-    if entry.community:
-        client.set_community_review(dep_id, client.community_uuid(entry.community))
+    client.set_community_review(dep_id, community_uuid)
     client.submit_review(dep_id)
     return _state_row("resynced", deposition_id=dep_id)
 
@@ -143,7 +153,7 @@ def run_resync(
     done = 0
     for entry in entries:
         row = state.get(entry.doi)
-        if row and row.get("status") in ("resynced", "exists"):
+        if row and row.get("status") in ("resynced", "exists", "published"):
             continue
         if limit is not None and done >= limit:
             break

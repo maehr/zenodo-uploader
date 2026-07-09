@@ -176,6 +176,19 @@ class ZenodoClient:
         log.info("submitted for community review", id=record_id)
         return review
 
+    def get_review(self, record_id: int) -> dict[str, Any] | None:
+        """Return the community review attached to a draft, or None if absent.
+
+        The returned request carries the target community under
+        ``receiver.community`` (a UUID), which lets callers re-attach the same
+        community after cancelling a review.
+        """
+        response = self._request("GET", f"{self.base_url}/api/records/{record_id}/draft/review")
+        if response.status_code == 404:
+            return None
+        review: dict[str, Any] = self._json_or_raise(response)
+        return review
+
     def cancel_review(self, record_id: int) -> None:
         """Withdraw a draft's community review so its files become editable again.
 

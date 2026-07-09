@@ -162,7 +162,59 @@ def test_resync_entry_without_community_still_submits(
     with client:
         row = resync_entry(client, entry)
     assert row["status"] == "resynced"
+    # Community is recovered from the draft's existing review before cancelling.
     assert dep["id"] in fake_zenodo.submitted
+
+
+def test_resync_entry_errors_when_no_community_available(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    from zenodo_uploader.models import Creator, ZenodoMetadata
+
+    doi = "10.21255/sgb-03.05-238056"
+    dep = client.create_deposition(
+        ZenodoMetadata(
+            title="T",
+            upload_type="publication",
+            description="D",
+            creators=[Creator(name="Doe, Jane")],
+            publication_date="2024-01-01",
+            doi=doi,
+        )
+    )
+    original = tmp_path / "chapter.pdf"
+    original.write_bytes(b"original")
+    client.upload_file(dep, original)  # a draft with a file but no review attached
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced])  # no community, no review to fall back to
+    with client:
+        row = resync_entry(client, entry)
+    assert row["status"] == "error"
+    # Bailed before cancelling/swapping, so the original file is untouched.
+    assert fake_zenodo.files[dep["id"]] == ["chapter.pdf"]
+
+
+def test_run_resync_skips_published(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    doi = "10.21255/sgb-03.05-238056"
+    _submitted_draft(client, doi, "chapter.pdf", b"original", tmp_path)
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    entry = ManifestEntry(doi=doi, files=[enhanced], community="stadt-geschichte-basel")
+    state_path = tmp_path / "state.json"
+    save_state(
+        state_path,
+        {doi: {"status": "published", "record_url": "https://zenodo.example/records/1"}},
+    )
+    with client:
+        state = run_resync(client, [entry], state_path)
+    # A published row is terminal: left untouched, not overwritten to "exists".
+    assert state[doi]["status"] == "published"
+    assert state[doi]["record_url"] == "https://zenodo.example/records/1"
 
 
 def test_resync_entry_skips_published(

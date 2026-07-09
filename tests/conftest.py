@@ -75,6 +75,8 @@ class FakeZenodo:
         if path.endswith("/draft/review"):
             if request.method == "DELETE":
                 return self._cancel_review(request)
+            if request.method == "GET":
+                return self._get_review(request)
             return self._set_review(request)
         if path.endswith("/draft/actions/submit-review"):
             return self._submit_review(request)
@@ -103,6 +105,12 @@ class FakeZenodo:
         record_id = int(request.url.path.split("/")[3])
         self.submitted.add(record_id)
         return httpx2.Response(200, request=request, json={"status": "submitted"})
+
+    def _get_review(self, request: httpx2.Request) -> httpx2.Response:
+        record_id = int(request.url.path.split("/")[3])
+        if record_id not in self.reviews:
+            return httpx2.Response(404, request=request, json={})
+        return httpx2.Response(200, request=request, json=self.reviews[record_id])
 
     def _cancel_review(self, request: httpx2.Request) -> httpx2.Response:
         record_id = int(request.url.path.split("/")[3])
