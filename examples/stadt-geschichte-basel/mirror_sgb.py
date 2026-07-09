@@ -4,7 +4,6 @@
 #   "httpx2>=2.5",
 #   "beautifulsoup4>=4.12",
 #   "lxml>=5",
-#   "pypdf>=5",
 # ]
 # ///
 """Prepare the Stadt.Geschichte.Basel mirror: collect files, build the manifest.
@@ -12,9 +11,10 @@
 Covers all 88 DOIs of the book series (9 volumes + 79 chapters). With
 ``--source`` pointing at a local sgb-minimal-html checkout, the chapter PDFs,
 minimal-HTML editions, and official full-volume PDFs are taken from disk.
-Without it, chapter files are downloaded from the emono.unibas.ch galleys and
-GitHub, and volume bundles are merged from the chapter PDFs. Writes
-``manifest.json`` for ``zenodo-uploader batch``.
+Without it, chapter files and the official full-volume PDFs are downloaded from
+the emono.unibas.ch galleys (and the minimal-HTML editions from GitHub). Each
+volume record always attaches the official volume PDF. Writes ``manifest.json``
+for ``zenodo-uploader batch``.
 
 Usage:
     uv run mirror_sgb.py [--source /path/to/sgb-minimal-html] [--out .]
@@ -31,7 +31,6 @@ from pathlib import Path
 
 import httpx2
 from bs4 import BeautifulSoup
-from pypdf import PdfWriter
 
 DOIS_URL = (
     "https://raw.githubusercontent.com/Stadt-Geschichte-Basel/sgb-minimal-html/main/pdf/dois.txt"
@@ -92,7 +91,6 @@ def main() -> int:
     files_dir = args.out / "files"
 
     manifest: list[dict] = []
-    volume_chapters: dict[int, list[tuple[int, Path]]] = {}
     volume_dois: dict[int, str] = {}
 
     with httpx2.Client(timeout=60, follow_redirects=True) as client:
@@ -120,38 +118,21 @@ def main() -> int:
                     download(
                         client, MINIMAL_HTML_URL.format(volume=volume, suffix=suffix), html_path
                     )
-            volume_chapters.setdefault(volume, []).append((chapter, pdf_path))
             files = [str(pdf_path)] if args.pdf_only else [str(pdf_path), str(html_path)]
             manifest.append({"doi": doi, "files": files, "community": COMMUNITY})
 
-    for volume, doi in sorted(volume_dois.items()):
-        suffix, _, _ = parse_doi(doi)
-        entry: dict = {"doi": doi, "community": COMMUNITY}
-        official = (
-            args.source / "pdf" / f"volume-{volume:02d}" / f"{suffix}.pdf" if args.source else None
-        )
-        if official is not None and official.exists():
-            entry["files"] = [str(official)]
-        else:
-            # Fallback when no official volume PDF is available: bundle the chapters.
-            bundle = files_dir / f"{suffix}.pdf"
-            if not bundle.exists():
-                print(f"merging volume {volume}", file=sys.stderr)
-                writer = PdfWriter()
-                for _, pdf_path in sorted(volume_chapters[volume]):
-                    writer.append(str(pdf_path))
-                bundle.parent.mkdir(parents=True, exist_ok=True)
-                with bundle.open("wb") as handle:
-                    writer.write(handle)
-            entry["files"] = [str(bundle)]
-            entry["description"] = (
-                f"<p>Band {volume} der Buchreihe Stadt.Geschichte.Basel. "
-                "Christoph Merian Verlag. Diese Aufnahme bündelt die "
-                "Kapitel-PDFs des Bandes in einer Datei; die einzelnen "
-                "Kapitel sind über ihre eigenen DOIs verfügbar "
-                f'(siehe <a href="https://doi.org/{doi}">doi.org/{doi}</a>).</p>'
-            )
-        manifest.append(entry)
+        for volume, doi in sorted(volume_dois.items()):
+            suffix, _, _ = parse_doi(doi)
+            print(f"volume {doi}", file=sys.stderr)
+            if args.source:
+                pdf_path = args.source / "pdf" / f"volume-{volume:02d}" / f"{suffix}.pdf"
+                if not pdf_path.exists():
+                    raise FileNotFoundError(f"official volume PDF missing in --source: {pdf_path}")
+            else:
+                attributes = client.get(DATACITE_API + doi).json()["data"]["attributes"]
+                pdf_path = files_dir / f"volume-{volume:02d}" / f"{suffix}.pdf"
+                download(client, pdf_galley_url(client, attributes["url"]), pdf_path)
+            manifest.append({"doi": doi, "files": [str(pdf_path)], "community": COMMUNITY})
 
     manifest_path = args.out / "manifest.json"
     manifest_path.write_text(
