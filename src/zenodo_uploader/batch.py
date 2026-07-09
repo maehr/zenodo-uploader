@@ -135,6 +135,7 @@ def resync_entry(
         client.upload_file(deposition, path)
     if not resubmit:
         return _state_row("draft", deposition_id=dep_id)
+    assert community_uuid is not None  # guaranteed by the resubmit guard above
     client.set_community_review(dep_id, community_uuid)
     client.submit_review(dep_id)
     return _state_row("resynced", deposition_id=dep_id)
