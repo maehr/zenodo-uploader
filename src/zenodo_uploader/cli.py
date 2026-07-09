@@ -12,7 +12,7 @@ import structlog
 import typer
 from pydantic import ValidationError
 
-from .batch import ManifestEntry, load_manifest, mirror_entry, run_batch
+from .batch import ManifestEntry, load_manifest, mirror_entry, run_batch, run_resync
 from .config import Settings, base_url_for
 from .mapping import work_to_zenodo
 from .models import RelatedIdentifier
@@ -202,6 +202,50 @@ def batch(
     _confirm_production_publish(sandbox, publish, yes)
     with _client(sandbox) as client, _datacite_client() as datacite_client:
         result = run_batch(client, datacite_client, entries, state, publish=publish, limit=limit)
+    counts: dict[str, int] = {}
+    for row in result.values():
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+    typer.echo(json.dumps(counts, indent=2, sort_keys=True))
+
+
+@app.command()
+def resync(
+    manifest: Annotated[
+        Path, typer.Option(exists=True, help="JSON manifest: array of {doi, files, ...}.")
+    ],
+    state: Annotated[Path, typer.Option(help="JSON state file for resumable runs.")] = Path(
+        "state.json"
+    ),
+    limit: Annotated[int | None, typer.Option(help="Process at most N pending entries.")] = None,
+    resubmit: Annotated[
+        bool,
+        typer.Option(
+            "--resubmit/--no-resubmit",
+            help="Re-submit the community review after swapping files (default).",
+        ),
+    ] = True,
+    sandbox: SandboxOption = False,
+    dry_run: DryRunOption = False,
+) -> None:
+    """Replace files on submitted-but-unpublished drafts with the manifest's files.
+
+    Withdraws each record's community review, swaps its files in place (keyed by
+    file name), and re-submits the review. Preserves the DOI and creates no new
+    version; published records are skipped. Use to push metadata-enhanced files
+    onto records that are under review but not yet published.
+    """
+    entries = load_manifest(manifest)
+    if dry_run:
+        for entry in entries:
+            typer.echo(
+                json.dumps(
+                    {"doi": entry.doi, "files": [str(p) for p in entry.files]},
+                    ensure_ascii=False,
+                )
+            )
+        return
+    with _client(sandbox) as client:
+        result = run_resync(client, entries, state, resubmit=resubmit, limit=limit)
     counts: dict[str, int] = {}
     for row in result.values():
         counts[row["status"]] = counts.get(row["status"], 0) + 1

@@ -198,6 +198,56 @@ def test_batch_command(wired: FakeZenodo, tmp_path: Path) -> None:
     assert json.loads(result.stdout) == {"published": 1}
 
 
+def test_resync_command(wired: FakeZenodo, tmp_path: Path) -> None:
+    # Seed a submitted-but-unpublished draft with the original file.
+    from zenodo_uploader.models import Creator, ZenodoMetadata
+
+    doi = "10.21255/sgb-03.05-238056"
+    with ZenodoClient(
+        "https://zenodo.example",
+        "token",
+        transport=httpx2.MockTransport(wired.handler),
+        sleep=lambda _: None,
+    ) as seed:
+        dep = seed.create_deposition(
+            ZenodoMetadata(
+                title="T",
+                upload_type="publication",
+                description="D",
+                creators=[Creator(name="Doe, Jane")],
+                publication_date="2024-01-01",
+                doi=doi,
+            )
+        )
+        original = tmp_path / "chapter.pdf"
+        original.write_bytes(b"original")
+        seed.upload_file(dep, original)
+        seed.set_community_review(dep["id"], seed.community_uuid("stadt-geschichte-basel"))
+        seed.submit_review(dep["id"])
+
+    enhanced = tmp_path / "enhanced" / "chapter.pdf"
+    enhanced.parent.mkdir()
+    enhanced.write_bytes(b"%PDF enhanced")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps([{"doi": doi, "files": [str(enhanced)], "community": "stadt-geschichte-basel"}])
+    )
+    state = tmp_path / "state.json"
+
+    dry = runner.invoke(cli.app, ["resync", "--manifest", str(manifest), "--dry-run"])
+    assert dry.exit_code == 0
+    assert doi in dry.stdout
+
+    result = runner.invoke(
+        cli.app,
+        ["resync", "--manifest", str(manifest), "--state", str(state), "--sandbox"],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {"resynced": 1}
+    assert wired.files[dep["id"]] == ["chapter.pdf"]
+    assert dep["id"] in wired.submitted
+
+
 def test_check_command(wired: FakeZenodo) -> None:
     result = runner.invoke(cli.app, ["check", "10.1/x", "--sandbox"])
     assert result.exit_code == 0

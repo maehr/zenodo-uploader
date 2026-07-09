@@ -67,10 +67,14 @@ class FakeZenodo:
         if path == "/api/deposit/depositions" and request.method == "POST":
             return self._create(request)
         if path.startswith("/bucket/"):
+            if request.method == "DELETE":
+                return self._delete_file(request)
             return self._upload(request)
         if path.endswith("/actions/publish"):
             return self._publish(request)
         if path.endswith("/draft/review"):
+            if request.method == "DELETE":
+                return self._cancel_review(request)
             return self._set_review(request)
         if path.endswith("/draft/actions/submit-review"):
             return self._submit_review(request)
@@ -99,6 +103,20 @@ class FakeZenodo:
         record_id = int(request.url.path.split("/")[3])
         self.submitted.add(record_id)
         return httpx2.Response(200, request=request, json={"status": "submitted"})
+
+    def _cancel_review(self, request: httpx2.Request) -> httpx2.Response:
+        record_id = int(request.url.path.split("/")[3])
+        self.reviews.pop(record_id, None)
+        self.submitted.discard(record_id)
+        return httpx2.Response(204, request=request)
+
+    def _delete_file(self, request: httpx2.Request) -> httpx2.Response:
+        _, dep_id, filename = request.url.path.rsplit("/", 2)
+        files = self.files.get(int(dep_id), [])
+        if filename not in files:
+            return httpx2.Response(404, request=request, json={})
+        files.remove(filename)
+        return httpx2.Response(204, request=request)
 
     def _search_records(self, request: httpx2.Request) -> httpx2.Response:
         doi = request.url.params["q"].removeprefix('doi:"').removesuffix('"')
