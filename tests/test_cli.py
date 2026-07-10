@@ -199,7 +199,7 @@ def test_batch_command(wired: FakeZenodo, tmp_path: Path) -> None:
 
 
 def test_resync_command(wired: FakeZenodo, tmp_path: Path) -> None:
-    # Seed a submitted-but-unpublished draft with the original file.
+    # Seed a plain editable draft (no review) with the original file.
     from zenodo_uploader.models import Creator, ZenodoMetadata
 
     doi = "10.21255/sgb-03.05-238056"
@@ -222,8 +222,6 @@ def test_resync_command(wired: FakeZenodo, tmp_path: Path) -> None:
         original = tmp_path / "chapter.pdf"
         original.write_bytes(b"original")
         seed.upload_file(dep, original)
-        seed.set_community_review(dep["id"], seed.community_uuid("stadt-geschichte-basel"))
-        seed.submit_review(dep["id"])
 
     enhanced = tmp_path / "enhanced" / "chapter.pdf"
     enhanced.parent.mkdir()
@@ -232,19 +230,36 @@ def test_resync_command(wired: FakeZenodo, tmp_path: Path) -> None:
     manifest.write_text(
         json.dumps([{"doi": doi, "files": [str(enhanced)], "community": "stadt-geschichte-basel"}])
     )
-    state = tmp_path / "state.json"
 
     dry = runner.invoke(cli.app, ["resync", "--manifest", str(manifest), "--dry-run"])
     assert dry.exit_code == 0
     assert doi in dry.stdout
 
+    # Default: overwrite files in place, no community review.
     result = runner.invoke(
         cli.app,
-        ["resync", "--manifest", str(manifest), "--state", str(state), "--sandbox"],
+        ["resync", "--manifest", str(manifest), "--state", str(tmp_path / "s1.json"), "--sandbox"],
     )
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {"resynced": 1}
     assert wired.files[dep["id"]] == ["chapter.pdf"]
+    assert dep["id"] not in wired.submitted
+
+    # Opt-in --submit: also attach and submit a community review.
+    submitted = runner.invoke(
+        cli.app,
+        [
+            "resync",
+            "--manifest",
+            str(manifest),
+            "--state",
+            str(tmp_path / "s2.json"),
+            "--submit",
+            "--sandbox",
+        ],
+    )
+    assert submitted.exit_code == 0
+    assert json.loads(submitted.stdout) == {"submitted": 1}
     assert dep["id"] in wired.submitted
 
 
