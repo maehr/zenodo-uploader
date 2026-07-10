@@ -59,8 +59,8 @@ uv run zenodo-uploader upload --metadata .zenodo.json --file data.csv --sandbox
 # Mirror a whole manifest, resumable via the state file
 uv run zenodo-uploader batch --manifest manifest.json --state state.json --sandbox
 
-# Replace files on submitted-but-unpublished drafts (e.g. push metadata-enhanced
-# PDFs before publication) without minting a new version DOI
+# Overwrite files on unpublished drafts (e.g. push metadata-enhanced PDFs
+# before publication) without minting a new version DOI
 uv run zenodo-uploader resync --manifest manifest.json --state state.json --sandbox
 ```
 
@@ -88,9 +88,9 @@ uv run zenodo-uploader resync --manifest manifest.json --state state.json --sand
 
 The state file records one row per DOI (`draft`, `published`, `exists`, or `error`); rerunning the batch skips finished rows and retries errors.
 
-### Resyncing files on records under review
+### Resyncing files on unpublished drafts
 
-`resync` updates the files of records that are **submitted for community review but not yet published**. For each manifest entry it withdraws the review, replaces each file in place (matched by file name), and re-submits the review. The DOI is preserved and **no new version is created**, so this only works while the record is unpublished — published records are skipped. Pass `--no-resubmit` to leave the draft editable instead of re-submitting. `resync` rows are marked `resynced` in the state file so reruns skip them.
+`resync` overwrites the files of **unpublished drafts**. For each manifest entry it fetches the draft and re-uploads each file under the same key, overwriting it in place (a same-key bucket `PUT`). The DOI is preserved and **no new version is created**, so this only works while the record is unpublished — published records are skipped. Community submission is opt-in: pass `--submit` to additionally attach and submit a community review after overwriting (using the manifest's `community`, or one already on the draft). `resync` rows are marked `resynced` (or `submitted` with `--submit`) in the state file so reruns skip them.
 
 ### Metadata mapping
 

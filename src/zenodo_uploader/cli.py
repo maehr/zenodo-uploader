@@ -217,22 +217,23 @@ def resync(
         "state.json"
     ),
     limit: Annotated[int | None, typer.Option(help="Process at most N pending entries.")] = None,
-    resubmit: Annotated[
+    submit: Annotated[
         bool,
         typer.Option(
-            "--resubmit/--no-resubmit",
-            help="Re-submit the community review after swapping files (default).",
+            "--submit/--no-submit",
+            help="Also attach and submit a community review after overwriting files (opt-in).",
         ),
-    ] = True,
+    ] = False,
     sandbox: SandboxOption = False,
     dry_run: DryRunOption = False,
 ) -> None:
-    """Replace files on submitted-but-unpublished drafts with the manifest's files.
+    """Overwrite files on unpublished drafts with the manifest's files.
 
-    Withdraws each record's community review, swaps its files in place (keyed by
-    file name), and re-submits the review. Preserves the DOI and creates no new
-    version; published records are skipped. Use to push metadata-enhanced files
-    onto records that are under review but not yet published.
+    Fetches each draft and re-uploads its files under the same key, overwriting
+    them in place. Preserves the DOI and creates no new version; published
+    records are skipped. Use to push metadata-enhanced files onto existing
+    drafts. With --submit, additionally attaches and submits a community review
+    after overwriting (opt-in; needs a community in the manifest or on the draft).
     """
     entries = load_manifest(manifest)
     if dry_run:
@@ -245,7 +246,7 @@ def resync(
             )
         return
     with _client(sandbox) as client:
-        result = run_resync(client, entries, state, resubmit=resubmit, limit=limit)
+        result = run_resync(client, entries, state, submit=submit, limit=limit)
     counts: dict[str, int] = {}
     for row in result.values():
         counts[row["status"]] = counts.get(row["status"], 0) + 1

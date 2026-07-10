@@ -39,7 +39,9 @@ class ZenodoClient:
         self._last_request = 0.0
         self._client = httpx2.Client(
             headers={"Authorization": f"Bearer {token}"},
-            timeout=httpx2.Timeout(60.0),
+            # Generous read/write timeouts: SGB volume PDFs run to ~120 MB and
+            # overrun a flat 60 s timeout during the bucket upload.
+            timeout=httpx2.Timeout(60.0, read=300.0, write=600.0),
             transport=transport,
         )
 
@@ -182,11 +184,19 @@ class ZenodoClient:
         The returned request carries the target community under
         ``receiver.community`` (a UUID), which lets callers re-attach the same
         community after cancelling a review.
+
+        A review-less draft has no review resource: Zenodo answers
+        ``GET /draft/review`` with 404, or (observed on plain SGB drafts) a
+        persistent 500. Both — and any other error — resolve to ``None`` here so
+        callers can treat "no review" uniformly instead of handling exceptions.
         """
-        response = self._request("GET", f"{self.base_url}/api/records/{record_id}/draft/review")
-        if response.status_code == 404:
+        try:
+            response = self._request("GET", f"{self.base_url}/api/records/{record_id}/draft/review")
+        except ZenodoError:
             return None
-        review: dict[str, Any] = self._json_or_raise(response)
+        if response.status_code >= 400:
+            return None
+        review: dict[str, Any] = response.json()
         return review
 
     def cancel_review(self, record_id: int) -> None:
@@ -194,12 +204,14 @@ class ZenodoClient:
 
         Deletes the pending or submitted community-submission review attached to
         the draft, returning it to a private, editable state (the counterpart of
-        :meth:`set_community_review`/:meth:`submit_review`). A missing review is
-        treated as success, so this is safe to call unconditionally before
-        replacing files.
+        :meth:`set_community_review`/:meth:`submit_review`). A review-less draft
+        has nothing to cancel — Zenodo answers ``DELETE /draft/review`` with 404,
+        or (observed on plain SGB drafts) 400 — so those statuses are treated as
+        success, making this safe to call unconditionally before replacing files.
+        Only a genuinely unexpected status raises.
         """
         response = self._request("DELETE", f"{self.base_url}/api/records/{record_id}/draft/review")
-        if response.status_code not in (200, 204, 404):
+        if response.status_code not in (200, 204, 400, 404):
             raise ZenodoError(f"cancelling review for {record_id} failed: {response.status_code}")
         log.info("review cancelled", id=record_id)
 

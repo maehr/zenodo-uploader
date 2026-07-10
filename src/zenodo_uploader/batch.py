@@ -100,15 +100,21 @@ def resync_entry(
     client: ZenodoClient,
     entry: ManifestEntry,
     *,
-    resubmit: bool = True,
+    submit: bool = False,
 ) -> dict[str, Any]:
-    """Replace a submitted/draft deposition's files with the manifest's files.
+    """Overwrite an unpublished draft's files with the manifest's files.
 
-    Used to push updated (e.g. metadata-enhanced) files onto a record that is
-    under community review but not yet published: it withdraws the review,
-    swaps each file in place (delete then re-upload, keyed by file name), and
-    by default re-submits the review. No new version is created and the DOI is
-    preserved. Published records are left untouched.
+    Pushes updated (e.g. metadata-enhanced) files onto an existing draft: it
+    fetches the full deposition (the search result lacks the bucket link),
+    then re-uploads each file under the same key, which overwrites it in place.
+    No file is deleted, no new version is created and the DOI is preserved;
+    published records are left untouched.
+
+    With ``submit=True``, community submission is opt-in: after overwriting the
+    files it attaches and submits a community-submission review, using the
+    manifest's community (falling back to any review already on the draft).
+    Plain editable drafts — the common case — need none of that and are handled
+    by the default path.
     """
     if client.find_records_by_doi(entry.doi):
         log.info("already published, skipping", doi=entry.doi)
@@ -116,29 +122,25 @@ def resync_entry(
     drafts = client.find_depositions_by_doi(entry.doi)
     if not drafts:
         return _state_row("error", error="no draft to resync")
-    deposition = drafts[0]
-    dep_id = deposition["id"]
-    # Capture the target community before cancelling: submit_review requires an
-    # attached review, and cancel_review deletes it. Prefer the manifest's
-    # community, otherwise fall back to the one the draft is already under.
-    community_uuid: str | None = None
-    if resubmit:
-        if entry.community:
-            community_uuid = client.community_uuid(entry.community)
-        elif review := client.get_review(dep_id):
-            community_uuid = review.get("receiver", {}).get("community")
-        if not community_uuid:
-            return _state_row("error", error="cannot resubmit review without a community")
-    client.cancel_review(dep_id)
+    dep_id = drafts[0]["id"]
+    # The search result carries no links.bucket; the full deposition does.
+    deposition = client.get_deposition(dep_id)
     for path in entry.files:
-        client.delete_file(deposition, path.name)
-        client.upload_file(deposition, path)
-    if not resubmit:
-        return _state_row("draft", deposition_id=dep_id)
-    assert community_uuid is not None  # guaranteed by the resubmit guard above
+        client.upload_file(deposition, path)  # same-key PUT overwrites
+    if not submit:
+        return _state_row("resynced", deposition_id=dep_id)
+    # Opt-in community submission: prefer the manifest's community, otherwise
+    # fall back to the one a review is already attached to.
+    community_uuid: str | None = None
+    if entry.community:
+        community_uuid = client.community_uuid(entry.community)
+    elif review := client.get_review(dep_id):
+        community_uuid = review.get("receiver", {}).get("community")
+    if not community_uuid:
+        return _state_row("error", error="cannot submit review without a community")
     client.set_community_review(dep_id, community_uuid)
     client.submit_review(dep_id)
-    return _state_row("resynced", deposition_id=dep_id)
+    return _state_row("submitted", deposition_id=dep_id)
 
 
 def run_resync(
@@ -146,7 +148,7 @@ def run_resync(
     entries: list[ManifestEntry],
     state_path: Path,
     *,
-    resubmit: bool = True,
+    submit: bool = False,
     limit: int | None = None,
 ) -> dict[str, Any]:
     """Resync every manifest entry's files, resuming from the state file."""
@@ -154,13 +156,13 @@ def run_resync(
     done = 0
     for entry in entries:
         row = state.get(entry.doi)
-        if row and row.get("status") in ("resynced", "exists", "published"):
+        if row and row.get("status") in ("resynced", "submitted", "exists", "published"):
             continue
         if limit is not None and done >= limit:
             break
         log.info("resyncing", doi=entry.doi)
         try:
-            state[entry.doi] = resync_entry(client, entry, resubmit=resubmit)
+            state[entry.doi] = resync_entry(client, entry, submit=submit)
         except Exception as exc:
             state[entry.doi] = _state_row("error", error=str(exc))
             log.error("failed", doi=entry.doi, error=str(exc))

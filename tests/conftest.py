@@ -109,11 +109,15 @@ class FakeZenodo:
     def _get_review(self, request: httpx2.Request) -> httpx2.Response:
         record_id = int(request.url.path.split("/")[3])
         if record_id not in self.reviews:
-            return httpx2.Response(404, request=request, json={})
+            # Plain (review-less) drafts answer with a persistent 500 on Zenodo.
+            return httpx2.Response(500, request=request, json={})
         return httpx2.Response(200, request=request, json=self.reviews[record_id])
 
     def _cancel_review(self, request: httpx2.Request) -> httpx2.Response:
         record_id = int(request.url.path.split("/")[3])
+        if record_id not in self.reviews:
+            # Nothing to cancel: Zenodo answers 400 for a review-less draft.
+            return httpx2.Response(400, request=request, json={})
         self.reviews.pop(record_id, None)
         self.submitted.discard(record_id)
         return httpx2.Response(204, request=request)
@@ -140,7 +144,9 @@ class FakeZenodo:
     def _search_depositions(self, request: httpx2.Request) -> httpx2.Response:
         doi = request.url.params["q"].removeprefix('doi:"').removesuffix('"')
         rows = [
-            dep
+            # A search result carries no links.bucket (only the full deposition
+            # from GET .../depositions/{id} does), so strip it here.
+            {**dep, "links": {k: v for k, v in dep["links"].items() if k != "bucket"}}
             for dep_id, dep in self.depositions.items()
             if dep_id not in self.published and dep["metadata"].get("doi") == doi
         ]
@@ -164,7 +170,9 @@ class FakeZenodo:
 
     def _upload(self, request: httpx2.Request) -> httpx2.Response:
         _, dep_id, filename = request.url.path.rsplit("/", 2)
-        self.files[int(dep_id)].append(filename)
+        files = self.files[int(dep_id)]
+        if filename not in files:  # a same-key PUT overwrites in place
+            files.append(filename)
         return httpx2.Response(
             201, request=request, json={"key": filename, "size": len(request.content)}
         )
