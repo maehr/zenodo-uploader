@@ -185,7 +185,32 @@ def test_cancel_review(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
 def test_cancel_review_without_review_is_noop(client: ZenodoClient) -> None:
     with client:
         dep = client.create_deposition(_metadata())
-        client.cancel_review(dep["id"])  # no review attached; must not raise
+        # A review-less draft answers DELETE /draft/review with 400; tolerated.
+        client.cancel_review(dep["id"])  # must not raise
+
+
+def test_get_review_returns_attached_review(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.set_community_review(dep["id"], "uuid-of-community")
+        review = client.get_review(dep["id"])
+    assert review is not None
+    assert review["receiver"] == {"community": "uuid-of-community"}
+
+
+def test_get_review_none_on_persistent_500(client: ZenodoClient) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        # A review-less draft answers GET /draft/review with a persistent 500.
+        assert client.get_review(dep["id"]) is None
+
+
+def test_get_review_none_on_error_status(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    with client:
+        dep = client.create_deposition(_metadata())
+        client.set_community_review(dep["id"], "uuid-of-community")
+        fake_zenodo.fail_next = 404  # non-retryable error resolves to "no review"
+        assert client.get_review(dep["id"]) is None
 
 
 def test_delete_file(client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path) -> None:
