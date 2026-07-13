@@ -89,6 +89,16 @@ def emono_abstract(client: httpx2.Client, url: str) -> str | None:
     return f"<p>{text}</p>" if text else None
 
 
+def emono_publication_date(client: httpx2.Client, url: str) -> str | None:
+    """Return the emono ``citation_publication_date`` (YYYY-MM-DD), or None.
+
+    DataCite only carries a ``publicationYear``; the true per-volume release date
+    lives on the emono landing page.
+    """
+    m = re.search(META_RE.format(name="citation_publication_date"), client.get(url).text)
+    return m.group(1).strip() if m and m.group(1).strip() else None
+
+
 def chapter_fulltext(source: Path, volume: int, suffix: str) -> tuple[str, str | None]:
     html = (source / "html" / f"volume-{volume:02d}" / f"{suffix}.html").read_text("utf-8")
     body = MAIN_RE.search(html)
@@ -107,6 +117,7 @@ def build_metadata(
     volume_title: str | None,
     volume_isbn: str | None,
     pages: str | None,
+    publication_date: str | None,
     related: list[RelatedIdentifier],
 ) -> ZenodoMetadata:
     year = int(attrs["publicationYear"])
@@ -118,7 +129,7 @@ def build_metadata(
         publication_type="book" if is_volume else "section",
         description=description,
         creators=creators_of(attrs),
-        publication_date=f"{year}-01-01",
+        publication_date=publication_date or f"{year}-01-01",
         doi=doi,
         license=license_of(attrs),
         language=lang,
@@ -169,6 +180,7 @@ def main() -> int:
             suffix, vol, chap = parse_doi(doi)
             attrs = attrs_by_doi[doi]
             landing = attrs["url"]
+            pub_date = emono_publication_date(dc, landing)
             isbn = isbn_of(attrs) or isbn_by_volume.get(vol)
             alt = []
             if isbn:
@@ -201,6 +213,7 @@ def main() -> int:
                     volume_title=None,
                     volume_isbn=isbn,
                     pages=None,
+                    publication_date=pub_date,
                     related=related,
                 )
             else:  # chapter
@@ -228,6 +241,7 @@ def main() -> int:
                     volume_title=title_by_doi.get(volume_doi) if volume_doi else None,
                     volume_isbn=isbn,
                     pages=pages,
+                    publication_date=pub_date,
                     related=related,
                 )
 
