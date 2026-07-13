@@ -1,442 +1,461 @@
 {
   "10.21255/sgb-01-406352": {
     "deposition_id": 21255657,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:22.951411+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:02.317408+00:00"
   },
   "10.21255/sgb-01.00-586075": {
     "deposition_id": 21255406,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:39.471412+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:06.432941+00:00"
   },
   "10.21255/sgb-01.01-439115": {
     "deposition_id": 21255410,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:43.243209+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:12:07.831139+00:00"
   },
   "10.21255/sgb-01.02-993418": {
     "deposition_id": 21255412,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:47.362358+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:10.510092+00:00"
   },
   "10.21255/sgb-01.03-840481": {
     "deposition_id": 21255414,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:52.117181+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:14.955430+00:00"
   },
   "10.21255/sgb-01.04-168013": {
     "deposition_id": 21255418,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:55.853703+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:19.206525+00:00"
   },
   "10.21255/sgb-01.05-896299": {
     "deposition_id": 21255420,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:43:59.568131+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:23.050493+00:00"
   },
   "10.21255/sgb-01.06-725132": {
     "deposition_id": 21255422,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:03.408204+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:27.328533+00:00"
   },
   "10.21255/sgb-01.07-191037": {
     "deposition_id": 21255426,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:08.301073+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:31.584893+00:00"
   },
   "10.21255/sgb-02-404936": {
     "deposition_id": 21255661,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:30.119886+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:35.821295+00:00"
   },
   "10.21255/sgb-02.00-992209": {
     "deposition_id": 21255430,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:11.677173+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:39.882943+00:00"
   },
   "10.21255/sgb-02.01-731545": {
     "deposition_id": 21255432,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:15.727227+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:43.832102+00:00"
   },
   "10.21255/sgb-02.02-277131": {
     "deposition_id": 21255437,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:20.187416+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:47.908980+00:00"
   },
   "10.21255/sgb-02.03-202164": {
     "deposition_id": 21255442,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:23.975715+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:51.934356+00:00"
   },
   "10.21255/sgb-02.04-422394": {
     "deposition_id": 21255447,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:28.904744+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:55.972214+00:00"
   },
   "10.21255/sgb-02.05-299313": {
     "deposition_id": 21255452,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:37.457990+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:13:59.889413+00:00"
   },
   "10.21255/sgb-02.06-669397": {
     "deposition_id": 21255460,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:42.492036+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:14:04.268812+00:00"
   },
   "10.21255/sgb-02.07-338656": {
     "deposition_id": 21255467,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:45.945344+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:14:08.186152+00:00"
   },
   "10.21255/sgb-02.08-653896": {
     "deposition_id": 21255469,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:49.872216+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:14:12.657257+00:00"
   },
   "10.21255/sgb-02.09-762624": {
     "deposition_id": 21255472,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:53.994866+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:14:16.972322+00:00"
   },
   "10.21255/sgb-03-345800": {
     "deposition_id": 21255665,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:37.029142+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:49:39.166530+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3 -> 500: "
   },
   "10.21255/sgb-03.00-910023": {
     "deposition_id": 21255475,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:44:57.818851+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:50:44.993912+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/301 -> 500: "
   },
   "10.21255/sgb-03.01-669037": {
     "deposition_id": 21255477,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:02.134013+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:51:50.678120+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/302 -> 500: "
   },
   "10.21255/sgb-03.02-691441": {
     "deposition_id": 21255479,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:06.141848+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:52:56.682084+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/303 -> 500: "
   },
   "10.21255/sgb-03.03-794527": {
     "deposition_id": 21255483,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:10.050282+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:54:02.421483+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/304 -> 500: "
   },
   "10.21255/sgb-03.04-367774": {
     "deposition_id": 21255485,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:14.103036+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:55:08.573291+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/305 -> 500: "
   },
   "10.21255/sgb-03.05-238056": {
     "deposition_id": 21255487,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:18.124777+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:56:14.251140+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/306 -> 500: "
   },
   "10.21255/sgb-03.06-114045": {
     "deposition_id": 21255489,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:22.118820+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:57:20.234262+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/307 -> 500: "
   },
   "10.21255/sgb-03.07-756128": {
     "deposition_id": 21255492,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:26.231168+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:58:26.190389+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/308 -> 500: "
   },
   "10.21255/sgb-03.08-820440": {
     "deposition_id": 21255494,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:30.340238+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:59:32.140990+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/309 -> 500: "
   },
   "10.21255/sgb-03.09-715160": {
     "deposition_id": 21255496,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:33.896249+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:00:37.952403+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/310 -> 500: "
   },
   "10.21255/sgb-03.10-414719": {
     "deposition_id": 21255500,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:37.917918+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:01:43.996364+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/311 -> 500: "
   },
   "10.21255/sgb-04-283636": {
     "deposition_id": 21255672,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:45.954206+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:13.537634+00:00"
   },
   "10.21255/sgb-04.00-920056": {
     "deposition_id": 21255502,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:41.952860+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:17.495269+00:00"
   },
   "10.21255/sgb-04.01-573018": {
     "deposition_id": 21255509,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:47.636567+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:21.967999+00:00"
   },
   "10.21255/sgb-04.02-998032": {
     "deposition_id": 21255511,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:52.635097+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:26.809501+00:00"
   },
   "10.21255/sgb-04.03-959816": {
     "deposition_id": 21255515,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:45:56.573659+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:30.803787+00:00"
   },
   "10.21255/sgb-04.04-600476": {
     "deposition_id": 21255518,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:00.533502+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:35.005021+00:00"
   },
   "10.21255/sgb-04.05-270373": {
     "deposition_id": 21255520,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:07.617929+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:39.459393+00:00"
   },
   "10.21255/sgb-04.06-125466": {
     "deposition_id": 21255522,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:11.251924+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:43.374708+00:00"
   },
   "10.21255/sgb-04.07-152300": {
     "deposition_id": 21255526,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:15.166245+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:47.320933+00:00"
   },
   "10.21255/sgb-04.08-315502": {
     "deposition_id": 21255528,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:18.961898+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:51.459789+00:00"
   },
   "10.21255/sgb-04.09-675115": {
     "deposition_id": 21255534,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:22.877563+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:55.458123+00:00"
   },
   "10.21255/sgb-05-155353": {
     "deposition_id": 21255680,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:52.530486+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:28:59.931765+00:00"
   },
   "10.21255/sgb-05.00-351596": {
     "deposition_id": 21255536,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:26.992466+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:03.897374+00:00"
   },
   "10.21255/sgb-05.01-320593": {
     "deposition_id": 21255538,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:33.070953+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:08.173066+00:00"
   },
   "10.21255/sgb-05.02-771925": {
     "deposition_id": 21255540,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:37.126282+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:12.639574+00:00"
   },
   "10.21255/sgb-05.03-719243": {
     "deposition_id": 21255543,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:41.768780+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:16.580333+00:00"
   },
   "10.21255/sgb-05.04-432348": {
     "deposition_id": 21255545,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:46.005838+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:20.675102+00:00"
   },
   "10.21255/sgb-05.05-622430": {
     "deposition_id": 21255549,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:49.846924+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:24.671068+00:00"
   },
   "10.21255/sgb-05.06-612316": {
     "deposition_id": 21255553,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:53.847029+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:28.663584+00:00"
   },
   "10.21255/sgb-05.07-488609": {
     "deposition_id": 21255555,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:46:57.602933+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:32.656832+00:00"
   },
   "10.21255/sgb-05.08-142908": {
     "deposition_id": 21255557,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:01.579612+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:36.662369+00:00"
   },
   "10.21255/sgb-05.09-314588": {
     "deposition_id": 21255559,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:05.464004+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:40.823224+00:00"
   },
   "10.21255/sgb-05.10-850524": {
     "deposition_id": 21255563,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:09.330007+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:44.712703+00:00"
   },
   "10.21255/sgb-05.11-316525": {
     "deposition_id": 21255565,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:14.056829+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:48.963858+00:00"
   },
   "10.21255/sgb-06-810743": {
     "deposition_id": 21255684,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:50:00.343488+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:53.037165+00:00"
   },
   "10.21255/sgb-06.00-192307": {
     "deposition_id": 21255569,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:17.287067+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:29:57.028644+00:00"
   },
   "10.21255/sgb-06.01-625359": {
     "deposition_id": 21255571,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:26.084233+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:01.124568+00:00"
   },
   "10.21255/sgb-06.02-663720": {
     "deposition_id": 21255573,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:30.720714+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:05.076772+00:00"
   },
   "10.21255/sgb-06.03-309580": {
     "deposition_id": 21255579,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:34.192732+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:09.581119+00:00"
   },
   "10.21255/sgb-06.04-716861": {
     "deposition_id": 21255581,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:41.128798+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:13.619210+00:00"
   },
   "10.21255/sgb-06.05-710534": {
     "deposition_id": 21255585,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:45.217771+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:17.716075+00:00"
   },
   "10.21255/sgb-06.06-843064": {
     "deposition_id": 21255589,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:48.952886+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:21.811785+00:00"
   },
   "10.21255/sgb-06.07-476243": {
     "deposition_id": 21255593,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:52.423075+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:25.945110+00:00"
   },
   "10.21255/sgb-07-663402": {
     "deposition_id": 21255688,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:50:08.940793+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:30.718152+00:00"
   },
   "10.21255/sgb-07.00-412331": {
     "deposition_id": 21255598,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:47:57.194774+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:34.609755+00:00"
   },
   "10.21255/sgb-07.01-137256": {
     "deposition_id": 21255600,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:00.811833+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:38.704893+00:00"
   },
   "10.21255/sgb-07.02-917501": {
     "deposition_id": 21255608,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:05.380759+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:42.698928+00:00"
   },
   "10.21255/sgb-07.03-539723": {
     "deposition_id": 21255612,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:09.334611+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:46.692679+00:00"
   },
   "10.21255/sgb-07.04-535461": {
     "deposition_id": 21255616,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:13.593652+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:50.584282+00:00"
   },
   "10.21255/sgb-07.05-986553": {
     "deposition_id": 21255621,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:17.215702+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:54.783253+00:00"
   },
   "10.21255/sgb-07.06-601421": {
     "deposition_id": 21255623,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:20.797681+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:30:59.187079+00:00"
   },
   "10.21255/sgb-08-796384": {
     "deposition_id": 21255693,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:50:19.887166+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:03.132418+00:00"
   },
   "10.21255/sgb-08.00-926859": {
     "deposition_id": 21255625,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:24.940299+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:07.245788+00:00"
   },
   "10.21255/sgb-08.01-665666": {
     "deposition_id": 21255627,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:29.359127+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:11.179474+00:00"
   },
   "10.21255/sgb-08.02-782443": {
     "deposition_id": 21255629,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:33.217461+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:15.247932+00:00"
   },
   "10.21255/sgb-08.03-619079": {
     "deposition_id": 21255633,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:37.477887+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:19.288747+00:00"
   },
   "10.21255/sgb-08.04-547129": {
     "deposition_id": 21255635,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:41.305045+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:23.455728+00:00"
   },
   "10.21255/sgb-08.05-264155": {
     "deposition_id": 21255637,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:45.506484+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:27.293714+00:00"
   },
   "10.21255/sgb-08.06-480635": {
     "deposition_id": 21255639,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:48.908959+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T12:31:31.955723+00:00"
   },
   "10.21255/sgb-09-486500": {
     "deposition_id": 21255699,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:50:31.848274+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:02:49.465158+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/ -> 500: "
   },
   "10.21255/sgb-09.00-167141": {
     "deposition_id": 21255641,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:53.044386+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:03:55.209749+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/356 -> 500: "
   },
   "10.21255/sgb-09.01-621452": {
     "deposition_id": 21255643,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:48:57.931700+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:05:00.950224+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/357 -> 500: "
   },
   "10.21255/sgb-09.02-456616": {
     "deposition_id": 21255649,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:02.241138+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:06:06.998402+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/358 -> 500: "
   },
   "10.21255/sgb-09.03-874521": {
     "deposition_id": 21255651,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:06.509563+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:07:13.353719+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/359 -> 500: "
   },
   "10.21255/sgb-09.04-446968": {
     "deposition_id": 21255653,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:11.367701+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:08:19.144731+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/360 -> 500: "
   },
   "10.21255/sgb-09.05-877006": {
     "deposition_id": 21255655,
-    "status": "submitted",
-    "timestamp": "2026-07-08T06:49:14.611834+00:00"
+    "status": "date-fixed",
+    "timestamp": "2026-07-13T13:09:24.780822+00:00",
+    "error": "GET https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band9/chapter/361 -> 500: "
   }
 }
