@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.maehr/zenodo-uploader",
+  "title": "Zenodo Uploader",
+  "description": "Mirror DOIs and upload records to Zenodo, keeping the original DOI.",
+  "repository": {
+    "url": "https://github.com/maehr/zenodo-uploader",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "zenodo-uploader",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ZENODO_TOKEN",
+          "description": "API token for zenodo.org, with the deposit:write and deposit:actions scopes.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "ZENODO_SANDBOX_TOKEN",
+          "description": "API token for sandbox.zenodo.org, with the deposit:write and deposit:actions scopes.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "ZENODO_ALLOW_PRODUCTION_PUBLISH",
+          "description": "Set to 1 to permit irreversible publishing on zenodo.org. Omit to allow drafts only.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
