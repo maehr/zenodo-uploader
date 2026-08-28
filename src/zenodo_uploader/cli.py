@@ -115,7 +115,6 @@ def from_doi(
             record = fetch_work(datacite_client, doi)
         metadata = work_to_zenodo(
             record,
-            community=community,
             description=description,
             extra_related=entry.related or None,
             keep_doi=keep_doi,
@@ -193,7 +192,6 @@ def batch(
                 record = fetch_work(datacite_client, entry.doi)
                 metadata = work_to_zenodo(
                     record,
-                    community=entry.community,
                     description=entry.description,
                     extra_related=entry.related or None,
                 )

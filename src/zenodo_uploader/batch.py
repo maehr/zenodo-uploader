@@ -65,7 +65,26 @@ def mirror_entry(
     *,
     publish: bool = False,
 ) -> dict[str, Any]:
-    """Mirror a single manifest entry; returns a state row for the DOI."""
+    """Mirror a single manifest entry; returns a state row for the DOI.
+
+    A community is not metadata. Zenodo accepts and echoes back the legacy
+    ``communities`` deposit field but never acts on it, so this attaches a
+    community-submission review to the draft instead. Four outcomes:
+
+    ==========  =======  ==========================================  ===========
+    community   publish  action                                      status
+    ==========  =======  ==========================================  ===========
+    no          no       stop at the draft                           ``draft``
+    no          yes      publish the draft                           ``published``
+    yes         no       attach the review, leave it unsubmitted     ``draft``
+    yes         yes      attach and submit the review                ``submitted``
+    ==========  =======  ==========================================  ===========
+
+    A submitted review is not a published record: it is an inclusion request
+    that a curator of the community must accept. Acceptance publishes the
+    record. Until then the draft stays private, and Zenodo refuses both a
+    direct publish and a delete while the request is open.
+    """
     if existing := client.find_records_by_doi(entry.doi):
         url = existing[0].get("links", {}).get("html") or existing[0].get("links", {}).get(
             "self_html"
@@ -79,19 +98,25 @@ def mirror_entry(
         record = fetch_work(datacite_client, entry.doi)
         metadata = work_to_zenodo(
             record,
-            community=entry.community,
             description=entry.description,
             extra_related=entry.related or None,
         )
         deposition = client.create_deposition(metadata)
         for path in entry.files:
             client.upload_file(deposition, path)
+    dep_id = deposition["id"]
+    if entry.community:
+        client.set_community_review(dep_id, client.community_uuid(entry.community))
+        if not publish:
+            return _state_row("draft", deposition_id=dep_id, community=entry.community)
+        client.submit_review(dep_id)
+        return _state_row("submitted", deposition_id=dep_id, community=entry.community)
     if not publish:
-        return _state_row("draft", deposition_id=deposition["id"])
-    published = client.publish(deposition["id"])
+        return _state_row("draft", deposition_id=dep_id)
+    published = client.publish(dep_id)
     return _state_row(
         "published",
-        deposition_id=deposition["id"],
+        deposition_id=dep_id,
         record_url=published.get("links", {}).get("html"),
     )
 
@@ -110,7 +135,7 @@ def run_batch(
     done = 0
     for entry in entries:
         row = state.get(entry.doi)
-        if row and row.get("status") in ("published", "exists"):
+        if row and row.get("status") in ("published", "submitted", "exists"):
             continue
         if row and row.get("status") == "draft" and not publish:
             continue

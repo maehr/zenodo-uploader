@@ -12,25 +12,25 @@ from zenodo_uploader.zenodo import ZenodoClient
 
 DATACITE_CHAPTER: dict[str, Any] = {
     "doi": "10.5555/example-chapter",
-    "titles": [{"title": "Hand-Werk und Lohn-Arbeit"}],
+    "titles": [{"title": "A Chapter About Something"}],
     "creators": [
         {
-            "name": "Hitz, Benjamin",
-            "givenName": "Benjamin",
-            "familyName": "Hitz",
+            "name": "Doe, Jane",
+            "givenName": "Jane",
+            "familyName": "Doe",
             "nameIdentifiers": [
                 {
                     "nameIdentifierScheme": "ORCID",
-                    "nameIdentifier": "https://orcid.org/0000-0002-3208-4881",
+                    "nameIdentifier": "https://orcid.org/0000-0002-1825-0097",
                 }
             ],
         }
     ],
-    "publisher": "Christoph Merian Verlag",
+    "publisher": "Example Press",
     "publicationYear": 2024,
     "types": {"resourceTypeGeneral": "BookChapter"},
     "rightsList": [{"rightsIdentifier": "cc-by-nc-4.0"}],
-    "url": "https://emono.unibas.ch/stadtgeschichtebasel/catalog/book/band3/chapter/306",
+    "url": "https://example.org/books/1/chapters/3",
     "language": "de",
     "descriptions": [],
     "relatedIdentifiers": [

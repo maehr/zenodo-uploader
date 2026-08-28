@@ -119,7 +119,6 @@ class ZenodoMetadata(BaseModel):
     partof_title: str | None = None
     partof_pages: str | None = None
     keywords: list[str] = Field(default_factory=list)
-    communities: list[str] = Field(default_factory=list)
     related_identifiers: list[RelatedIdentifier] = Field(default_factory=list)
 
     def to_payload(self) -> dict[str, Any]:
@@ -130,10 +129,10 @@ class ZenodoMetadata(BaseModel):
         Examples:
             >>> m = ZenodoMetadata(title="T", upload_type="publication",
             ...     description="D", creators=[Creator(name="Doe, Jane")],
-            ...     publication_date="2024-01-01", communities=["c1"])
+            ...     publication_date="2024-01-01", keywords=["open science"])
             >>> payload = m.to_payload()["metadata"]
-            >>> payload["communities"]
-            [{'identifier': 'c1'}]
+            >>> payload["keywords"]
+            ['open science']
             >>> "license" in payload
             False
         """
@@ -169,8 +168,6 @@ class ZenodoMetadata(BaseModel):
             metadata["partof_pages"] = self.partof_pages
         if self.keywords:
             metadata["keywords"] = list(self.keywords)
-        if self.communities:
-            metadata["communities"] = [{"identifier": c} for c in self.communities]
         if self.related_identifiers:
             metadata["related_identifiers"] = [
                 {"relation": r.relation, "identifier": r.identifier}

@@ -19,10 +19,14 @@ from zenodo_uploader.batch import (
 from zenodo_uploader.zenodo import ZenodoClient
 
 
-def _entry(tmp_path: Path, doi: str = "10.5555/example-chapter") -> ManifestEntry:
+def _entry(
+    tmp_path: Path,
+    doi: str = "10.5555/example-chapter",
+    community: str | None = None,
+) -> ManifestEntry:
     pdf = tmp_path / "chapter.pdf"
     pdf.write_bytes(b"%PDF")
-    return ManifestEntry(doi=doi, files=[pdf], community="my-community")
+    return ManifestEntry(doi=doi, files=[pdf], community=community)
 
 
 def test_manifest_roundtrip(tmp_path: Path) -> None:
@@ -66,6 +70,77 @@ def test_mirror_entry_draft_then_publish(
         # Once published, mirroring is a no-op.
         row = mirror_entry(client, datacite_client, entry, publish=True)
         assert row["status"] == "exists"
+
+
+def test_mirror_entry_community_draft_attaches_unsubmitted_review(
+    client: ZenodoClient,
+    fake_zenodo: FakeZenodo,
+    datacite_client: httpx2.Client,
+    tmp_path: Path,
+) -> None:
+    """community + no publish: the review is attached but left unsubmitted."""
+    entry = _entry(tmp_path, community="my-community")
+    with client:
+        row = mirror_entry(client, datacite_client, entry, publish=False)
+    assert row["status"] == "draft"
+    assert row["community"] == "my-community"
+    dep_id = row["deposition_id"]
+    assert dep_id in fake_zenodo.reviews  # attached
+    assert dep_id not in fake_zenodo.submitted  # but not submitted
+    assert dep_id not in fake_zenodo.published
+
+
+def test_mirror_entry_community_publish_submits_review(
+    client: ZenodoClient,
+    fake_zenodo: FakeZenodo,
+    datacite_client: httpx2.Client,
+    tmp_path: Path,
+) -> None:
+    """community + publish: the review is submitted, and nothing is published.
+
+    A submitted review is an inclusion request awaiting a curator, so the
+    legacy publish action is never called.
+    """
+    entry = _entry(tmp_path, community="my-community")
+    with client:
+        row = mirror_entry(client, datacite_client, entry, publish=True)
+    assert row["status"] == "submitted"
+    assert row["community"] == "my-community"
+    dep_id = row["deposition_id"]
+    assert dep_id in fake_zenodo.submitted
+    assert dep_id not in fake_zenodo.published
+
+
+def test_mirror_entry_reports_existing_record_url(
+    client: ZenodoClient,
+    fake_zenodo: FakeZenodo,
+    datacite_client: httpx2.Client,
+    tmp_path: Path,
+) -> None:
+    entry = _entry(tmp_path)
+    with client:
+        first = mirror_entry(client, datacite_client, entry, publish=True)
+        again = mirror_entry(client, datacite_client, entry, publish=True)
+    assert first["status"] == "published"
+    assert again["status"] == "exists"
+    assert again["record_url"] == first["record_url"]
+
+
+def test_run_batch_skips_submitted_rows(
+    client: ZenodoClient,
+    fake_zenodo: FakeZenodo,
+    datacite_client: httpx2.Client,
+    tmp_path: Path,
+) -> None:
+    """A submitted inclusion request is terminal: a rerun must not touch it."""
+    state_path = tmp_path / "state.json"
+    entry = _entry(tmp_path, community="my-community")
+    with client:
+        state = run_batch(client, datacite_client, [entry], state_path, publish=True)
+        assert state[entry.doi]["status"] == "submitted"
+        before = dict(fake_zenodo.depositions)
+        state = run_batch(client, datacite_client, [entry], state_path, publish=True)
+    assert fake_zenodo.depositions == before
 
 
 def test_run_batch_resumes_and_records_errors(
