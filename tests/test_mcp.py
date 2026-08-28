@@ -163,7 +163,7 @@ def test_create_record_passes_related_identifiers(wired: FakeZenodo) -> None:
 
 
 def test_create_record_rejects_an_unknown_relation(wired: FakeZenodo) -> None:
-    with pytest.raises(ToolError, match="invalid arguments"):
+    with pytest.raises(ToolError, match="invalid related identifier"):
         mcp.create_record(doi=DATACITE_CHAPTER["doi"], related={"isBestFriendOf": "10.1/x"})
 
 
@@ -426,7 +426,7 @@ def test_update_record_on_a_draft(wired: FakeZenodo, tmp_path: Path) -> None:
     dep_id = _created(wired, tmp_path)
     changed = _metadata() | {"title": "Changed"}
     result = mcp.update_record(dep_id, changed)
-    assert result["status"] == "draft"
+    assert result["status"] == "draft updated"
     assert wired.depositions[dep_id]["metadata"]["title"] == "Changed"
 
 
@@ -440,7 +440,7 @@ def test_update_record_republishes_an_external_doi(wired: FakeZenodo, tmp_path: 
 def test_update_record_refuses_a_zenodo_minted_doi(wired: FakeZenodo, tmp_path: Path) -> None:
     dep_id = _created(wired, tmp_path)
     mcp.publish_record(dep_id)
-    with pytest.raises(ToolError, match="new_version"):
+    with pytest.raises(ToolError, match="Create a new version"):
         mcp.update_record(dep_id, _metadata() | {"title": "Changed"})
 
 
@@ -484,7 +484,7 @@ def test_new_version_refuses_a_record_without_a_concept_doi(
 ) -> None:
     dep_id = _created(wired, tmp_path, doi="10.30965/external")
     mcp.publish_record(dep_id)
-    with pytest.raises(ToolError, match="update_record"):
+    with pytest.raises(ToolError, match="Update the metadata"):
         mcp.new_version(dep_id)
 
 
@@ -551,3 +551,15 @@ def test_new_version_surfaces_a_zenodo_error(wired: FakeZenodo, tmp_path: Path) 
     wired.fail_next = 400
     with pytest.raises(ToolError):
         mcp.new_version(dep_id)
+
+
+def test_create_record_honours_keep_doi(wired: FakeZenodo) -> None:
+    """keep_doi is advertised in the skill, so the tool must actually take it."""
+    mcp.create_record(doi=DATACITE_CHAPTER["doi"], keep_doi=True)
+    stored = next(iter(wired.depositions.values()))["metadata"]
+    assert stored["doi"] == DATACITE_CHAPTER["doi"]
+
+    wired.depositions.clear()
+    mcp.create_record(doi=DATACITE_CHAPTER["doi"], keep_doi=False)
+    stored = next(iter(wired.depositions.values()))["metadata"]
+    assert "doi" not in stored
