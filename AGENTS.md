@@ -1,109 +1,96 @@
 # Agents Tooling Specification
 
-Default Python tooling and conventions for agent codebases. Pin package versions in `pyproject.toml` and commit `uv.lock`. Dev tools must not ship to runtime.
+Default Python tooling for agent codebases. Pin versions in `pyproject.toml`, commit `uv.lock`. Dev tools never ship to runtime.
 
-## 1. Dev Tooling
+## 1. Orchestration
 
-Dev-only.
+Rules for the agent that reads this file. Context is the scarce resource. Spend it like money.
 
-* **[uv](https://docs.astral.sh/uv/)** — deps, venvs, Python versions, resolver, lockfile.
-* **[ruff](https://docs.astral.sh/ruff/)** — lint + format; replaces flake8/isort/black.
-* **[ty](https://docs.astral.sh/ty/)** — static type checker; pin exactly while beta.
-* **[pytest](https://docs.pytest.org/)** / **[pytest-cov](https://pytest-cov.readthedocs.io/)** — tests, doctests, coverage.
-* **[prek](https://prek.j178.dev/)** — Rust hook manager; reads `.pre-commit-config.yaml` or `prek.toml`.
-* **[commitizen](https://commitizen-tools.github.io/commitizen/)** (`cz`) — Conventional Commits + SemVer bumps.
-* **[git-cliff](https://git-cliff.org/docs/)** — changelog generation from Conventional Commits.
+**Model tier.** Frontier model orchestrates: holds the plan, the decisions, the shared context. Cheap small-window models do bounded subtasks. Pick the tier before you spawn, not after.
 
-## 2. Service / I/O
+**Delegate on evidence.** A subagent starts cold and re-derives context. Delegate work that reads far more than it reports — broad search, log triage, fan-out across many files. Do small local edits inline. Estimate the cost first; state it when the call is close.
 
-Runtime.
+**Contracts, not conversations.** One task per subagent: the context it cannot infer, the output shape, the stop condition. Subagents return conclusions, never file dumps. Reports are claims — verify before acting.
 
-* **[FastAPI](https://fastapi.tiangolo.com/)** — server-side async APIs; not for browser/WASM serving.
-* **[HTTPX2](https://github.com/pydantic/httpx2)** — Pydantic-maintained sync/async HTTP client. Package/import: `httpx2`.
-* **[sqlite3](https://docs.python.org/3/library/sqlite3.html)** — stdlib embedded DB interface; no Python package pin.
+**Parallel only when independent.** Concurrent agents only when no result feeds another. Cap fan-out at three.
 
-## 3. Data / Models
+**Context ladder.** Quarters of the usable window. At 25%, name the pressure source. At 50%, propose two reductions: offload to disk, delegate the reading, narrow the re-reads. At 75%, stop and reduce before further work.
 
-* **[Pydantic](https://pydantic.dev/)** — validation, schemas, serialization; use v2.
-* **[pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)** — typed config.
-* **[pandas](https://pandas.pydata.org/docs/)** — tabular data.
+**State lives on disk.** Plans, findings, and decisions go to files. Anything held only in the transcript dies at the next compaction.
 
-## 4. Interaction / Orchestration
+**Read narrow.** Read the slice, not the file. Never re-read a file you just wrote.
 
-* **[Typer](https://typer.tiangolo.com/)** — CLIs from type hints.
-* **[marimo](https://docs.marimo.io/)** — reactive notebooks/apps; WASM-capable with checks.
+## 2. Tooling
 
-## 5. Observability
+**Dev-only:** [uv](https://docs.astral.sh/uv/) deps/venvs/lockfile · [ruff](https://docs.astral.sh/ruff/) lint+format · [ty](https://docs.astral.sh/ty/) types, pin exactly while beta · [pytest](https://docs.pytest.org/) + [pytest-cov](https://pytest-cov.readthedocs.io/) tests/doctests/coverage · [prek](https://prek.j178.dev/) hooks, prefer `prek.toml` · [commitizen](https://commitizen-tools.github.io/commitizen/) (`cz`) commits + SemVer bumps · [git-cliff](https://git-cliff.org/docs/) changelog.
 
-* **[structlog](https://www.structlog.org/)** — structured logging.
+**Runtime:** [Pydantic](https://pydantic.dev/) v2 validation · [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) config · [FastAPI](https://fastapi.tiangolo.com/) async APIs, server-only · [HTTPX2](https://github.com/pydantic/httpx2) HTTP client, imports as `httpx2` · [sqlite3](https://docs.python.org/3/library/sqlite3.html) stdlib DB, no pin · [pandas](https://pandas.pydata.org/docs/) tables · [Typer](https://typer.tiangolo.com/) CLIs · [mcp](https://github.com/modelcontextprotocol/python-sdk) MCP servers, `FastMCP` over stdio · [marimo](https://docs.marimo.io/) reactive notebooks · [structlog](https://www.structlog.org/) logging · [Altair](https://altair-viz.github.io/) + [Matplotlib](https://matplotlib.org/stable/) charts.
 
-## 6. Visualization
+## 3. Standards
 
-* **[Altair / Vega-Altair](https://altair-viz.github.io/)** — declarative Vega-Lite charts.
-* **[Matplotlib](https://matplotlib.org/stable/)** — general plotting.
+[SemVer 2.0.0](https://semver.org/) drives `cz bump` · [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) feeds `cz` and `git-cliff` · [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/code_of_conduct/) as `CODE_OF_CONDUCT.md` · [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) as `LICENSE`, SPDX `AGPL-3.0-only`.
 
-## 7. Companion Specs
+## 4. Code
 
-Optional; not Python runtime deps.
-
-* **[DESIGN.md](https://github.com/google-labs-code/design.md)** — visual identity spec for UI projects. Node CLI: `npx @google/design.md`. Pin usage.
-
-## 8. Standards & Governance
-
-* **[SemVer 2.0.0](https://semver.org/)** — versioning; drives `cz bump`.
-* **[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)** — commit format; feeds `cz` and `git-cliff`.
-* **[Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/code_of_conduct/)** — default `CODE_OF_CONDUCT.md`.
-* **[GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)** — default `LICENSE`; prefer SPDX `AGPL-3.0-only`.
-
-## Coding Guidelines
-
-* Type hints everywhere; check with `ty`.
-* Pydantic at I/O boundaries: APIs, tools, config, serialized state.
-* Dataclasses for simple internal carriers.
-* Prefer pure functions for core logic.
-* Docstrings include runnable examples; test with:
+* Type hints everywhere. Pydantic at I/O boundaries (APIs, tools, config, serialized state), dataclasses for internal carriers, pure functions for core logic.
+* Docstrings carry runnable examples. 100% coverage on core logic; keep exclusions narrow and explicit.
+* `prek` runs the gate below plus a `cz` `commit-msg` hook. `git-cliff` writes the changelog.
 
 ```bash
-pytest --doctest-modules
+ruff check . && ruff format --check .
+ty check
+pytest --doctest-modules --cov --cov-fail-under=100
 ```
 
-* Require 100% coverage on core logic:
+## 5. GitHub Workflow
+
+**Fork and pull.** No direct pushes upstream.
 
 ```bash
-pytest --cov --cov-fail-under=100
+gh repo fork OWNER/REPO --clone
+git switch -c feat/thing
+gh pr create --repo OWNER/REPO
 ```
 
-* Keep exclusions narrow and explicit.
-* Enforce Conventional Commits with `cz` in a `prek` `commit-msg` hook.
-* Generate changelogs with `git-cliff`.
-* Manage hooks with `prek`, preferably `prek.toml`.
+Allow maintainer edits, resync with `gh repo sync`, one logical change per PR, Conventional Commits title.
 
-## Pyodide / Runtime Constraints
+**Stacking.** Each PR targets the branch below it, the bottom one targets the trunk. Merge bottom-up; GitHub re-targets the rest. Requirements come from the trunk only. Use the `gh stack` extension. Stacks live in one repo, never across forks.
 
-Separate **server** from **browser/WASM** targets. WASM rules apply only to browser-executed Python.
+**Protect the trunk.** Both layers are idempotent — re-runs converge.
 
-### Target Rules
+```bash
+gh repo edit --enable-squash-merge --enable-merge-commit=false --enable-rebase-merge=false \
+  --delete-branch-on-merge --allow-update-branch \
+  --enable-secret-scanning --enable-secret-scanning-push-protection
+gh api -X PUT repos/OWNER/REPO/branches/main/protection --input protection.json
+```
 
-* **Server:** FastAPI, HTTPX2, sqlite3, Pydantic, pandas, Typer, marimo, structlog, Altair, Matplotlib.
-* **Browser/WASM:** pure Python or compatible Pyodide/PyPI WASM wheels only.
-* **Never ship dev tools:** uv, ruff, ty, pytest, pytest-cov, prek, commitizen, git-cliff.
+`PUT` replaces the whole config; take the body shape from the [API reference](https://docs.github.com/en/rest/branches/branch-protection) rather than a stale snippet. Enforce: PR before merge, ≥1 approval, dismiss stale approvals on push, code-owner and last-push approval, conversation resolution, strict status checks, linear history, `enforce_admins: true`, no force-push, no deletion.
 
-### WASM Candidates
+* Without `enforce_admins`, the rule is advisory for whoever is most likely to bypass it.
+* Solo maintainer: 0 approvals — you cannot approve your own PR, and admin enforcement turns ≥1 into a deadlock.
+* Free plan covers public repos; private needs Pro or above.
+* Rulesets are the org-scale successor. `gh ruleset` only reads and creation is `POST`, so re-runs duplicate. Prefer the `PUT` for a single repo.
 
-Potentially compatible, subject to Pyodide/version checks:
+## 6. CI/CD Security
 
-* Pydantic
-* pandas
-* sqlite3
-* Altair
-* Matplotlib
-* marimo
-* structlog
-* Typer
+Baseline: [secure use of Actions](https://docs.github.com/en/actions/reference/security/secure-use).
 
-### Browser/WASM Networking
+* Top-level `permissions: contents: read`, widened per job only as needed. Default the repo token: `gh api -X PUT repos/OWNER/REPO/actions/permissions/workflow -f default_workflow_permissions=read`.
+* Pin actions to full commit SHAs verified against the upstream repo, not a fork. Dependabot bumps them.
+* Never check out fork code under `pull_request_target`. Prefer `workflow_run`; treat its artifacts as untrusted.
+* Never interpolate `github.event.*` into `run:`. Pass via `env:` and quote `"$VAR"`.
+* OIDC to short-lived cloud roles, no long-lived secrets. Secrets are scalars, never JSON blobs. Rotate them.
+* Gate deploys on an Environment with required reviewers; environment secrets over repo secrets.
+* No self-hosted runners on public repos.
+* `CODEOWNERS` covers `.github/workflows/**`.
+* Required checks: the §4 gate, CodeQL, `dependency-review-action`. Same commands locally via `prek`, so CI never surprises.
 
-* Do not assume OS sockets, subprocesses, or threads.
-* Do not run FastAPI as an in-browser server.
-* Prefer `pyodide.http.pyfetch` or `pyxhr` for browser HTTP.
-* Use HTTPX2 in WASM only with a tested adapter/custom transport.
+## 7. Browser / WASM
+
+Applies only to browser-executed Python; server targets are unconstrained.
+
+* Ship pure Python or verified Pyodide/PyPI WASM wheels. Never ship dev tools.
+* Candidates, subject to version checks: everything under Runtime except FastAPI and HTTPX2.
+* No OS sockets, subprocesses, or threads. No FastAPI in-browser.
+* HTTP via `pyodide.http.pyfetch` or `pyxhr`. HTTPX2 only with a tested custom transport.
