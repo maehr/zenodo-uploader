@@ -16,6 +16,14 @@ from zenodo_uploader.zenodo import ZenodoClient
 runner = CliRunner()
 
 
+def _message(result: object) -> str:
+    """Flatten Typer's boxed error output so a wrapped sentence can be matched."""
+    text = getattr(result, "output", "")
+    for box in "│╭╮╰╯─":
+        text = text.replace(box, " ")
+    return " ".join(text.split())
+
+
 @pytest.fixture
 def wired(monkeypatch: pytest.MonkeyPatch, fake_zenodo: FakeZenodo) -> FakeZenodo:
     """Route CLI HTTP traffic to the fakes (Zenodo and DataCite)."""
@@ -209,7 +217,7 @@ def test_check_command(wired: FakeZenodo) -> None:
     result = runner.invoke(cli.app, ["check", "10.1/x", "--sandbox"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload == {"doi": "10.1/x", "published": [], "depositions": []}
+    assert payload == {"doi": "10.1/x", "published": [], "drafts": []}
 
 
 def test_client_factories(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -302,7 +310,7 @@ def test_update_refuses_a_zenodo_minted_published_record(wired: FakeZenodo, tmp_
         cli.app, ["update", str(dep_id), "--metadata", str(changed), "--sandbox"]
     )
     assert result.exit_code != 0
-    assert "new-version" in result.output
+    assert "Create a new version" in _message(result)
     assert wired.depositions[dep_id]["metadata"]["title"] == "T"  # nothing changed
 
 
@@ -477,8 +485,33 @@ def test_new_version_refuses_a_record_with_an_external_doi(
     runner.invoke(cli.app, ["publish", str(dep_id), "--sandbox"])
     result = runner.invoke(cli.app, ["new-version", str(dep_id), "--sandbox"])
     assert result.exit_code != 0
-    assert "update" in result.output
+    assert "Update the metadata" in _message(result)
     # update and new-version cover opposite cases, so the other one works here.
     changed = _meta_file(tmp_path, title="Changed", name="changed.json")
     ok = runner.invoke(cli.app, ["update", str(dep_id), "--metadata", str(changed), "--sandbox"])
     assert ok.exit_code == 0
+
+
+def test_mint_doi_reaches_the_real_upload(wired: FakeZenodo) -> None:
+    """--mint-doi must drop the DOI on the real path, not only in --dry-run."""
+    args = ["create", "--from-doi", "10.5555/example-chapter", "--sandbox"]
+
+    kept = runner.invoke(cli.app, [*args, "--keep-doi"])
+    assert kept.exit_code == 0, kept.output
+    stored = next(iter(wired.depositions.values()))["metadata"]
+    assert stored["doi"] == "10.5555/example-chapter"
+
+    wired.depositions.clear()
+    minted = runner.invoke(cli.app, [*args, "--mint-doi"])
+    assert minted.exit_code == 0, minted.output
+    stored = next(iter(wired.depositions.values()))["metadata"]
+    assert "doi" not in stored
+
+
+def test_dry_run_agrees_with_the_real_upload_about_the_doi(wired: FakeZenodo) -> None:
+    """The preview must not promise something the real run will not do."""
+    args = ["create", "--from-doi", "10.5555/example-chapter", "--mint-doi", "--sandbox"]
+    preview = json.loads(runner.invoke(cli.app, [*args, "--dry-run"]).stdout)["metadata"]
+    runner.invoke(cli.app, args)
+    stored = next(iter(wired.depositions.values()))["metadata"]
+    assert ("doi" in preview) == ("doi" in stored) is False

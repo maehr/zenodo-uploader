@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -12,19 +14,18 @@ import structlog
 import typer
 from pydantic import ValidationError
 
-from .batch import ManifestEntry, load_manifest, process_entry, run_batch
+from . import operations
+from .batch import load_manifest, run_batch
 from .config import Settings, base_url_for
-from .mapping import work_to_zenodo
-from .models import RelatedIdentifier, validate_deposit_metadata
-from .resolve import fetch_work
-from .zenodo import ZenodoClient, is_zenodo_doi
+from .models import RelatedIdentifier
+from .operations import UsageError
+from .zenodo import ZenodoClient
 
 structlog.configure(logger_factory=structlog.PrintLoggerFactory(sys.stderr))
 
 app = typer.Typer(help=__doc__, no_args_is_help=True)
 files_app = typer.Typer(help="Manage the files of a deposition.", no_args_is_help=True)
 app.add_typer(files_app, name="files")
-log = structlog.get_logger()
 
 SandboxOption = Annotated[
     bool, typer.Option("--sandbox", help="Use sandbox.zenodo.org instead of zenodo.org.")
@@ -91,14 +92,20 @@ def _parse_related(values: list[str]) -> list[RelatedIdentifier]:
 
 
 def _read_metadata(path: Path) -> dict[str, Any]:
-    """Read a Zenodo metadata file, accepting both shapes, and validate it."""
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    meta: dict[str, Any] = payload.get("metadata", payload)
+    """Read a Zenodo metadata file, turning a bad one into a CLI error."""
     try:
-        validate_deposit_metadata(meta)
+        return operations.read_metadata_file(path)
     except (ValueError, AttributeError) as exc:
         raise typer.BadParameter(str(exc), param_hint="--metadata") from exc
-    return meta
+
+
+@contextmanager
+def _usage_errors() -> Iterator[None]:
+    """Present a lifecycle precondition failure as a CLI error."""
+    try:
+        yield
+    except (UsageError, AttributeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @app.command()
@@ -143,39 +150,38 @@ def create(
     """
     if (metadata is None) == (from_doi is None):
         raise typer.BadParameter("give exactly one of --metadata or --from-doi")
-
-    if metadata is not None:
-        entry = ManifestEntry(
-            metadata=_read_metadata(metadata), files=list(file or []), community=community
-        )
-    else:
-        entry = ManifestEntry(
-            doi=from_doi,
-            files=list(file or []),
-            description=description,
-            community=community,
-            related=_parse_related(related or []),
-        )
+    meta = _read_metadata(metadata) if metadata is not None else None
+    related_ids = _parse_related(related or [])
+    files = list(file or [])
 
     if dry_run:
-        if entry.doi is not None:
+        if from_doi is not None:
             with _registry_client() as registry:
-                record = fetch_work(registry, entry.doi)
-            payload = work_to_zenodo(
-                record,
-                description=description,
-                extra_related=entry.related or None,
-                keep_doi=keep_doi,
-            ).to_payload()
+                payload = {
+                    "metadata": operations.preview(
+                        registry, from_doi, description=description, keep_doi=keep_doi
+                    )
+                }
         else:
-            payload = {"metadata": entry.metadata}
+            payload = {"metadata": meta}
         typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
-        typer.echo(f"# would attach: {[str(p) for p in entry.files]}", err=True)
+        typer.echo(f"# would attach: {[str(p) for p in files]}", err=True)
         return
 
     _confirm_production_publish(sandbox, publish, yes)
-    with _client(sandbox) as client, _registry_client() as registry:
-        row = process_entry(client, registry, entry, publish=publish)
+    with _usage_errors(), _client(sandbox) as client, _registry_client() as registry:
+        row = operations.create(
+            client,
+            registry,
+            metadata=meta,
+            doi=from_doi,
+            files=files,
+            community=community,
+            description=description,
+            related=related_ids,
+            keep_doi=keep_doi,
+            publish=publish,
+        )
     typer.echo(json.dumps(row, indent=2))
 
 
@@ -203,39 +209,14 @@ def update(
         typer.echo(json.dumps({"metadata": meta}, indent=2, ensure_ascii=False))
         return
 
-    with _client(sandbox) as client:
-        current = client.get_deposition(deposition_id)
-        published = current.get("state") in ("done", "inprogress")
-        if published and is_zenodo_doi(current.get("doi")):
-            raise typer.BadParameter(
-                f"record {deposition_id} is published with a Zenodo-minted DOI "
-                f"({current.get('doi')}), which Zenodo refuses to publish again. "
-                f"Use 'new-version {deposition_id}' instead."
-            )
-        if not published:
-            client.update_deposition(deposition_id, meta)
-            typer.echo(json.dumps({"id": deposition_id, "status": "draft updated"}, indent=2))
-            return
-
-        _confirm_production_publish(sandbox, True, yes)
-        client.edit_deposition(deposition_id)
-        try:
-            client.update_deposition(deposition_id, meta)
-            record = client.publish(deposition_id)
-        except Exception:
-            # Never leave the record stuck in an open edit session.
-            client.discard_edit(deposition_id)
-            raise
-    typer.echo(
-        json.dumps(
-            {
-                "id": deposition_id,
-                "status": "republished",
-                "url": record.get("links", {}).get("html"),
-            },
-            indent=2,
+    with _usage_errors(), _client(sandbox) as client:
+        row = operations.update(
+            client,
+            deposition_id,
+            meta,
+            on_republish=lambda: _confirm_production_publish(sandbox, True, yes),
         )
-    )
+    typer.echo(json.dumps(row, indent=2))
 
 
 @app.command("new-version")
@@ -262,29 +243,14 @@ def new_version(
     instead. The two commands cover opposite cases.
     """
     _confirm_production_publish(sandbox, publish, yes)
-    with _client(sandbox) as client:
-        current = client.get_deposition(deposition_id)
-        if not current.get("conceptdoi"):
-            raise typer.BadParameter(
-                f"record {deposition_id} has no concept DOI, because its DOI "
-                f"({current.get('doi')}) is not one Zenodo minted. Zenodo cannot version it. "
-                f"Use 'update {deposition_id} --metadata …' instead."
-            )
-        draft = client.new_version(deposition_id)
-        draft_id = int(draft["id"])
-        if metadata is not None:
-            client.update_deposition(draft_id, _read_metadata(metadata))
-        for path in file or []:
-            client.upload_file(draft, path)
-        row: dict[str, Any] = {"id": draft_id, "status": "draft", "of": deposition_id}
-        if publish:
-            record = client.publish(draft_id)
-            row = {
-                "id": draft_id,
-                "status": "published",
-                "of": deposition_id,
-                "url": record.get("links", {}).get("html"),
-            }
+    with _usage_errors(), _client(sandbox) as client:
+        row = operations.new_version(
+            client,
+            deposition_id,
+            files=file or [],
+            metadata=_read_metadata(metadata) if metadata is not None else None,
+            publish=publish,
+        )
     typer.echo(json.dumps(row, indent=2))
 
 
@@ -297,17 +263,8 @@ def publish(
     """Publish an existing draft."""
     _confirm_production_publish(sandbox, True, yes)
     with _client(sandbox) as client:
-        record = client.publish(deposition_id)
-    typer.echo(
-        json.dumps(
-            {
-                "id": deposition_id,
-                "doi": record.get("doi"),
-                "url": record.get("links", {}).get("html"),
-            },
-            indent=2,
-        )
-    )
+        row = operations.publish(client, deposition_id)
+    typer.echo(json.dumps(row, indent=2))
 
 
 @app.command()
@@ -324,11 +281,8 @@ def submit(
     and refuses to delete it.
     """
     with _client(sandbox) as client:
-        client.set_community_review(deposition_id, client.community_uuid(community))
-        client.submit_review(deposition_id, comment=comment)
-    typer.echo(
-        json.dumps({"id": deposition_id, "community": community, "status": "submitted"}, indent=2)
-    )
+        row = operations.submit_to_community(client, deposition_id, community, comment=comment)
+    typer.echo(json.dumps(row, indent=2))
 
 
 @app.command()
@@ -340,20 +294,16 @@ def delete(
     """Delete a draft. A published record cannot be deleted."""
     _confirm_production_delete(sandbox, yes)
     with _client(sandbox) as client:
-        client.delete_draft(deposition_id)
-    typer.echo(json.dumps({"id": deposition_id, "status": "deleted"}, indent=2))
+        row = operations.delete(client, deposition_id)
+    typer.echo(json.dumps(row, indent=2))
 
 
 @files_app.command("ls")
 def files_ls(deposition_id: DepositionArg, sandbox: SandboxOption = False) -> None:
     """List the files of a deposition."""
     with _client(sandbox) as client:
-        listed = client.list_files(deposition_id)
-    typer.echo(
-        json.dumps(
-            [{"filename": f.get("filename"), "size": f.get("filesize")} for f in listed], indent=2
-        )
-    )
+        listed = operations.list_files(client, deposition_id)
+    typer.echo(json.dumps(listed, indent=2))
 
 
 @files_app.command("add")
@@ -364,10 +314,8 @@ def files_add(
 ) -> None:
     """Add files to a deposition, overwriting a file of the same name."""
     with _client(sandbox) as client:
-        deposition = client.get_deposition(deposition_id)
-        for path in file:
-            client.upload_file(deposition, path)
-    typer.echo(json.dumps({"id": deposition_id, "added": [p.name for p in file]}, indent=2))
+        row = operations.add_files(client, deposition_id, file)
+    typer.echo(json.dumps(row, indent=2))
 
 
 @files_app.command("rm")
@@ -378,17 +326,8 @@ def files_rm(
 ) -> None:
     """Remove files from a draft by name."""
     with _client(sandbox) as client:
-        removed = [name for name in filename if client.delete_file(deposition_id, name)]
-    typer.echo(
-        json.dumps(
-            {
-                "id": deposition_id,
-                "removed": removed,
-                "absent": [n for n in filename if n not in removed],
-            },
-            indent=2,
-        )
-    )
+        row = operations.remove_files(client, deposition_id, filename)
+    typer.echo(json.dumps(row, indent=2))
 
 
 @app.command()
@@ -416,12 +355,14 @@ def batch(
         with _registry_client() as registry:
             for entry in entries:
                 if entry.doi is not None:
-                    record = fetch_work(registry, entry.doi)
-                    payload = work_to_zenodo(
-                        record,
-                        description=entry.description,
-                        extra_related=entry.related or None,
-                    ).to_payload()
+                    payload = {
+                        "metadata": operations.preview(
+                            registry,
+                            entry.doi,
+                            description=entry.description,
+                            keep_doi=entry.keep_doi,
+                        )
+                    }
                 else:
                     payload = {"metadata": entry.resolve_metadata(base)}
                 typer.echo(json.dumps({entry.key: payload}, indent=2, ensure_ascii=False))
@@ -444,18 +385,8 @@ def check(
 ) -> None:
     """Report whether a DOI already exists on Zenodo (record or own draft)."""
     with _client(sandbox) as client:
-        records = client.find_records_by_doi(doi)
-        drafts = client.find_depositions_by_doi(doi)
-    typer.echo(
-        json.dumps(
-            {
-                "doi": doi,
-                "published": [r.get("links", {}).get("html") for r in records],
-                "depositions": [d.get("id") for d in drafts],
-            },
-            indent=2,
-        )
-    )
+        row = operations.check(client, doi)
+    typer.echo(json.dumps(row, indent=2))
 
 
 if __name__ == "__main__":  # pragma: no cover

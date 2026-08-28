@@ -10,9 +10,8 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field, model_validator
 
-from .mapping import work_to_zenodo
-from .models import RelatedIdentifier, ZenodoMetadata, validate_deposit_metadata
-from .resolve import fetch_work
+from . import operations
+from .models import RelatedIdentifier
 from .zenodo import ZenodoClient
 
 log = structlog.get_logger()
@@ -49,6 +48,7 @@ class ManifestEntry(BaseModel):
     description: str | None = None
     community: str | None = None
     related: list[RelatedIdentifier] = Field(default_factory=list)
+    keep_doi: bool = True
 
     @model_validator(mode="after")
     def _exactly_one_source(self) -> ManifestEntry:
@@ -128,72 +128,22 @@ def process_entry(
 ) -> dict[str, Any]:
     """Create one record from a manifest entry; returns its state row.
 
-    A community is not metadata. Zenodo accepts and echoes back the legacy
-    ``communities`` deposit field but never acts on it, so this attaches a
-    community-submission review to the draft instead. Four outcomes:
-
-    ==========  =======  ==========================================  ===========
-    community   publish  action                                      status
-    ==========  =======  ==========================================  ===========
-    no          no       stop at the draft                           ``draft``
-    no          yes      publish the draft                           ``published``
-    yes         no       attach the review, leave it unsubmitted     ``draft``
-    yes         yes      attach and submit the review                ``submitted``
-    ==========  =======  ==========================================  ===========
-
-    A submitted review is not a published record: it is an inclusion request
-    that a curator of the community must accept. Acceptance publishes the
-    record. Until then the draft stays private, and Zenodo refuses both a
-    direct publish and a delete while the request is open.
+    The lifecycle itself lives in :mod:`zenodo_uploader.operations`. This adds
+    only what the state file needs: the timestamp.
     """
-    literal = entry.resolve_metadata(base)
-    # Only a known DOI can be probed for. A literal-metadata entry carries one
-    # only if its author put it there.
-    probe_doi = entry.doi or (literal or {}).get("doi")
-    if probe_doi:
-        if existing := client.find_records_by_doi(probe_doi):
-            url = existing[0].get("links", {}).get("html") or existing[0].get("links", {}).get(
-                "self_html"
-            )
-            log.info("already published, skipping", doi=probe_doi, url=url)
-            return _state_row("exists", record_url=url)
-        drafts = client.find_depositions_by_doi(probe_doi)
-    else:
-        drafts = []
-    if drafts:
-        deposition = drafts[0]
-        log.info("reusing existing draft", key=entry.key, id=deposition["id"])
-    else:
-        metadata: ZenodoMetadata | dict[str, Any]
-        if literal is not None:
-            validate_deposit_metadata(literal)
-            metadata = literal
-        else:
-            assert entry.doi is not None  # guaranteed by the manifest validator
-            record = fetch_work(datacite_client, entry.doi)
-            metadata = work_to_zenodo(
-                record,
-                description=entry.description,
-                extra_related=entry.related or None,
-            )
-        deposition = client.create_deposition(metadata)
-        for path in entry.files:
-            client.upload_file(deposition, path)
-    dep_id = deposition["id"]
-    if entry.community:
-        client.set_community_review(dep_id, client.community_uuid(entry.community))
-        if not publish:
-            return _state_row("draft", deposition_id=dep_id, community=entry.community)
-        client.submit_review(dep_id)
-        return _state_row("submitted", deposition_id=dep_id, community=entry.community)
-    if not publish:
-        return _state_row("draft", deposition_id=dep_id)
-    published = client.publish(dep_id)
-    return _state_row(
-        "published",
-        deposition_id=dep_id,
-        record_url=published.get("links", {}).get("html"),
+    row = operations.create(
+        client,
+        datacite_client,
+        metadata=entry.resolve_metadata(base),
+        doi=entry.doi,
+        files=entry.files,
+        community=entry.community,
+        description=entry.description,
+        related=entry.related,
+        keep_doi=entry.keep_doi,
+        publish=publish,
     )
+    return {"timestamp": datetime.now(UTC).isoformat(), **row}
 
 
 def run_batch(

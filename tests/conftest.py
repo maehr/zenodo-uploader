@@ -43,6 +43,11 @@ DATACITE_CHAPTER: dict[str, Any] = {
 }
 
 
+def datacite_handler(request: httpx2.Request) -> httpx2.Response:
+    """Answer every DataCite lookup with the sample chapter."""
+    return httpx2.Response(200, request=request, json={"data": {"attributes": DATACITE_CHAPTER}})
+
+
 class FakeZenodo:
     """Minimal stateful double of the Zenodo deposit API."""
 
@@ -257,9 +262,4 @@ def client(fake_zenodo: FakeZenodo) -> ZenodoClient:
 
 @pytest.fixture
 def datacite_client() -> httpx2.Client:
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(
-            200, request=request, json={"data": {"attributes": DATACITE_CHAPTER}}
-        )
-
-    return httpx2.Client(transport=httpx2.MockTransport(handler))
+    return httpx2.Client(transport=httpx2.MockTransport(datacite_handler))
