@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import httpx2
@@ -17,8 +18,13 @@ runner = CliRunner()
 
 
 def _message(result: object) -> str:
-    """Flatten Typer's boxed error output so a wrapped sentence can be matched."""
-    text = getattr(result, "output", "")
+    """Flatten Typer's boxed error output so a wrapped sentence can be matched.
+
+    Rich wraps the text, draws a box around it, and colours it when it thinks a
+    terminal is attached, which CI does and a local run does not. Strip all
+    three so the assertion means the same thing everywhere.
+    """
+    text = re.sub(r"\x1b\[[0-9;]*m", "", getattr(result, "output", ""))
     for box in "│╭╮╰╯─":
         text = text.replace(box, " ")
     return " ".join(text.split())
