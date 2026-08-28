@@ -1,0 +1,14 @@
+{
+  "name": "maehr",
+  "owner": {
+    "name": "Moritz Mähr"
+  },
+  "description": "Tools for depositing research output in open repositories.",
+  "plugins": [
+    {
+      "name": "zenodo-uploader",
+      "source": ".",
+      "description": "Create, update, version, and publish Zenodo records, with a skill and an MCP server."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "zenodo": {
+      "command": "uvx",
+      "args": ["--from", "zenodo-uploader", "zenodo-mcp"]
+    }
+  }
+}
