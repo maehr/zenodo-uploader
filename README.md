@@ -116,7 +116,16 @@ See [`examples/.zenodo.json`](examples/.zenodo.json).
 
 ### Community curation
 
-Records submitted with `--community` create an inclusion request on publish; a community curator must accept it (in the community's *Requests* tab) before the record appears in the community.
+A record does not join a community through its metadata. Zenodo stores the legacy `communities` deposit field but never acts on it, so `--community` attaches a community-submission **review** to the draft instead.
+
+| `--community` | `--publish` | result                                          | state file  |
+| ------------- | ----------- | ----------------------------------------------- | ----------- |
+| no            | no          | private draft                                   | `draft`     |
+| no            | yes         | published record                                | `published` |
+| yes           | no          | private draft with an unsubmitted review        | `draft`     |
+| yes           | yes         | inclusion request awaiting a curator            | `submitted` |
+
+A submitted request is not a published record. A curator of the community must accept it in the community's *Requests* tab; acceptance publishes the record. While the request is open, Zenodo refuses both a direct publish and a delete of the draft.
 
 ## Development
 

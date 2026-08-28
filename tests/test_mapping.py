@@ -14,9 +14,9 @@ from zenodo_uploader.models import Creator, RelatedIdentifier, WorkRecord, Zenod
 def test_parse_datacite_full_record() -> None:
     record = parse_datacite(DATACITE_CHAPTER)
     assert record.doi == "10.5555/example-chapter"
-    assert record.title == "Hand-Werk und Lohn-Arbeit"
+    assert record.title == "A Chapter About Something"
     assert record.creators == [
-        Creator(name="Hitz, Benjamin", orcid="0000-0002-3208-4881", is_editor=False)
+        Creator(name="Doe, Jane", orcid="0000-0002-1825-0097", is_editor=False)
     ]
     assert record.license_id == "cc-by-nc-4.0"
     assert record.related_identifiers == [
@@ -70,15 +70,14 @@ def test_fetch_doi_raises_on_missing() -> None:
 
 def test_mapping_chapter_to_zenodo() -> None:
     record = parse_datacite(DATACITE_CHAPTER)
-    metadata = work_to_zenodo(record, community="my-community")
+    metadata = work_to_zenodo(record)
     payload = metadata.to_payload()["metadata"]
     assert payload["upload_type"] == "publication"
     assert payload["publication_type"] == "section"
     assert payload["doi"] == "10.5555/example-chapter"
     assert payload["license"] == "cc-by-nc-4.0"
     assert payload["language"] == "deu"
-    assert payload["imprint_publisher"] == "Christoph Merian Verlag"
-    assert payload["communities"] == [{"identifier": "my-community"}]
+    assert payload["imprint_publisher"] == "Example Press"
     assert payload["publication_date"] == "2024-01-01"
     assert {"relation": "isPartOf", "identifier": "10.5555/example-book"} in payload[
         "related_identifiers"
@@ -87,7 +86,7 @@ def test_mapping_chapter_to_zenodo() -> None:
         "relation": "isIdenticalTo",
         "identifier": DATACITE_CHAPTER["url"],
     } in payload["related_identifiers"]
-    assert payload["description"].startswith("<p>Hand-Werk und Lohn-Arbeit.")
+    assert payload["description"].startswith("<p>A Chapter About Something.")
 
 
 def test_mapping_overrides_and_extras() -> None:

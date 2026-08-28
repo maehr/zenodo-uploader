@@ -169,3 +169,119 @@ def test_submit_review_no_comment(client: ZenodoClient, fake_zenodo: FakeZenodo)
         client.set_community_review(dep["id"], "uuid-of-community")
         client.submit_review(dep["id"])
     assert dep["id"] in fake_zenodo.submitted
+
+
+# --- lifecycle verbs, shaped by what sandbox.zenodo.org actually does --------
+
+
+def _published(client: ZenodoClient, fake: FakeZenodo, tmp_path: Path, doi: str) -> int:
+    from zenodo_uploader.models import Creator, ZenodoMetadata
+
+    dep = client.create_deposition(
+        ZenodoMetadata(
+            title="T",
+            upload_type="dataset",
+            description="D",
+            creators=[Creator(name="Doe, Jane")],
+            publication_date="2024-01-01",
+            doi=doi,
+        )
+    )
+    blob = tmp_path / "v1.txt"
+    blob.write_bytes(b"v1")
+    client.upload_file(dep, blob)
+    client.publish(dep["id"])
+    return int(dep["id"])
+
+
+def test_is_zenodo_doi() -> None:
+    from zenodo_uploader.zenodo import is_zenodo_doi
+
+    assert is_zenodo_doi("10.5281/zenodo.1") is True  # production
+    assert is_zenodo_doi("10.5072/zenodo.1") is True  # sandbox
+    assert is_zenodo_doi("10.30965/9783657796823") is False
+    assert is_zenodo_doi(None) is False
+
+
+def test_edit_then_discard_round_trip(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    dep_id = _published(client, fake_zenodo, tmp_path, "10.30965/x")
+    client.edit_deposition(dep_id)
+    assert fake_zenodo.depositions[dep_id]["state"] == "inprogress"
+    client.discard_edit(dep_id)
+    assert fake_zenodo.depositions[dep_id]["state"] == "done"
+
+
+def test_edit_unpublished_raises(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    dep = client.create_deposition({"title": "T"})
+    with pytest.raises(ZenodoError):
+        client.edit_deposition(dep["id"])
+
+
+def test_discard_error_raises(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    fake_zenodo.fail_next = 400
+    with pytest.raises(ZenodoError):
+        client.discard_edit(1)
+
+
+def test_new_version_returns_the_new_draft(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    """Zenodo answers with the new draft, not the record acted on."""
+    dep_id = _published(client, fake_zenodo, tmp_path, "10.30965/x")
+    draft = client.new_version(dep_id)
+    assert draft["id"] != dep_id
+    assert draft["state"] == "unsubmitted"
+    # The draft inherits the previous version's files.
+    assert fake_zenodo.files[draft["id"]] == ["v1.txt"]
+
+
+def test_new_version_of_unpublished_raises(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    dep = client.create_deposition({"title": "T"})
+    with pytest.raises(ZenodoError):
+        client.new_version(dep["id"])
+
+
+def test_list_and_delete_file(
+    client: ZenodoClient, fake_zenodo: FakeZenodo, tmp_path: Path
+) -> None:
+    dep = client.create_deposition({"title": "T"})
+    blob = tmp_path / "data.csv"
+    blob.write_bytes(b"a,b")
+    client.upload_file(dep, blob)
+
+    listed = client.list_files(dep["id"])
+    assert [f["filename"] for f in listed] == ["data.csv"]
+
+    # Deletion goes through the file id, because the bucket route answers 404
+    # even for a file that is present.
+    assert client.delete_file(dep["id"], "data.csv") is True
+    assert client.list_files(dep["id"]) == []
+
+
+def test_delete_absent_file_reports_false(client: ZenodoClient, fake_zenodo: FakeZenodo) -> None:
+    dep = client.create_deposition({"title": "T"})
+    assert client.delete_file(dep["id"], "nothing.txt") is False
+
+
+def test_delete_file_error_raises(
+    client: ZenodoClient,
+    fake_zenodo: FakeZenodo,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A status that is neither success nor 'absent' must raise, not be ignored."""
+    dep = client.create_deposition({"title": "T"})
+    blob = tmp_path / "data.csv"
+    blob.write_bytes(b"a,b")
+    client.upload_file(dep, blob)
+
+    # 403 is not retried, so it reaches the status check in delete_file.
+    monkeypatch.setattr(
+        fake_zenodo,
+        "_delete_file",
+        lambda request: httpx2.Response(403, request=request, json={}),
+    )
+    with pytest.raises(ZenodoError, match="deleting file"):
+        client.delete_file(dep["id"], "data.csv")

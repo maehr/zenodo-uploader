@@ -1,7 +1,7 @@
 [project]
 name = "zenodo-uploader"
 version = "0.1.0"
-description = "General-purpose CLI to mirror DOIs and upload records to Zenodo via its REST API"
+description = "A Zenodo client: create, update, version, and publish records, from an agent or the CLI"
 readme = "README.md"
 authors = [
     { name = "Moritz Mähr", email = "14755525+maehr@users.noreply.github.com" }
@@ -9,9 +9,10 @@ authors = [
 requires-python = ">=3.13"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
-keywords = ["zenodo", "doi", "datacite", "open-science", "research-data"]
+keywords = ["zenodo", "doi", "datacite", "crossref", "open-science", "research-data", "mcp"]
 dependencies = [
     "httpx2>=2.5",
+    "mcp>=2.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
     "structlog>=24.4",
@@ -24,6 +25,8 @@ Issues = "https://github.com/maehr/zenodo-uploader/issues"
 
 [project.scripts]
 zenodo-uploader = "zenodo_uploader.cli:app"
+zenodo = "zenodo_uploader.cli:app"
+zenodo-mcp = "zenodo_uploader.mcp:main"
 
 [dependency-groups]
 dev = [
@@ -33,7 +36,8 @@ dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "ruff>=0.14",
-    "ty>=0.0.1a21",
+    # AGENTS.md section 2: pin ty exactly while it is beta.
+    "ty==0.0.1a21",
 ]
 
 [build-system]
