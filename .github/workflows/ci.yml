@@ -60,4 +60,5 @@ jobs:
       - name: Check the MCP registry ownership marker
         # The registry verifies PyPI ownership by finding this string in the
         # published package README. A silent drop breaks publishing later.
-        run: grep -q '<!-- mcp-name: io.github.maehr/zenodo-uploader -->' README.md
+        run: |
+          grep -q '<!-- mcp-name: io.github.maehr/zenodo-uploader -->' README.md
