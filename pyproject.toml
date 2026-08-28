@@ -24,6 +24,7 @@ Issues = "https://github.com/maehr/zenodo-uploader/issues"
 
 [project.scripts]
 zenodo-uploader = "zenodo_uploader.cli:app"
+zenodo = "zenodo_uploader.cli:app"
 
 [dependency-groups]
 dev = [

@@ -70,6 +70,16 @@ class FakeZenodo:
             return self._upload(request)
         if path.endswith("/actions/publish"):
             return self._publish(request)
+        if path.endswith("/actions/edit"):
+            return self._edit(request)
+        if path.endswith("/actions/discard"):
+            return self._discard(request)
+        if path.endswith("/actions/newversion"):
+            return self._new_version(request)
+        if path.endswith("/files") and request.method == "GET":
+            return self._list_files(request)
+        if "/files/" in path and request.method == "DELETE":
+            return self._delete_file(request)
         if path.endswith("/draft/review"):
             return self._set_review(request)
         if path.endswith("/draft/actions/submit-review"):
@@ -84,6 +94,58 @@ class FakeZenodo:
         if path.startswith("/api/deposit/depositions/") and request.method == "DELETE":
             return self._delete(request)
         return httpx2.Response(404, request=request, json={})
+
+    def _edit(self, request: httpx2.Request) -> httpx2.Response:
+        dep_id = int(request.url.path.split("/")[4])
+        if dep_id not in self.published:
+            return httpx2.Response(400, request=request, json={"message": "not published"})
+        self.depositions[dep_id]["state"] = "inprogress"
+        return httpx2.Response(201, request=request, json=self.depositions[dep_id])
+
+    def _discard(self, request: httpx2.Request) -> httpx2.Response:
+        dep_id = int(request.url.path.split("/")[4])
+        self.depositions[dep_id]["state"] = "done"
+        return httpx2.Response(204, request=request)
+
+    def _new_version(self, request: httpx2.Request) -> httpx2.Response:
+        """Zenodo returns the NEW draft here, not the record acted on."""
+        dep_id = int(request.url.path.split("/")[4])
+        if dep_id not in self.published:
+            return httpx2.Response(400, request=request, json={"message": "not published"})
+        new_id = self.next_id
+        self.next_id += 1
+        draft = {
+            "id": new_id,
+            "state": "unsubmitted",
+            "metadata": dict(self.depositions[dep_id]["metadata"]),
+            "links": {
+                "bucket": f"https://zenodo.example/bucket/{new_id}",
+                "html": f"https://zenodo.example/deposit/{new_id}",
+                "latest_draft": f"https://zenodo.example/api/deposit/depositions/{new_id}",
+            },
+        }
+        self.depositions[new_id] = draft
+        # A new version inherits the files of the version it came from.
+        self.files[new_id] = list(self.files.get(dep_id, []))
+        return httpx2.Response(201, request=request, json=draft)
+
+    def _list_files(self, request: httpx2.Request) -> httpx2.Response:
+        dep_id = int(request.url.path.split("/")[4])
+        return httpx2.Response(
+            200,
+            request=request,
+            json=[{"id": f"fid-{n}", "filename": n} for n in self.files.get(dep_id, [])],
+        )
+
+    def _delete_file(self, request: httpx2.Request) -> httpx2.Response:
+        parts = request.url.path.split("/")
+        dep_id, file_id = int(parts[4]), parts[6]
+        name = file_id.removeprefix("fid-")
+        files = self.files.get(dep_id, [])
+        if name not in files:
+            return httpx2.Response(404, request=request, json={})
+        files.remove(name)
+        return httpx2.Response(204, request=request)
 
     def _update(self, request: httpx2.Request) -> httpx2.Response:
         dep_id = int(request.url.path.rsplit("/", 1)[-1])
@@ -128,6 +190,7 @@ class FakeZenodo:
         metadata = json.loads(request.content)["metadata"]
         deposition = {
             "id": dep_id,
+            "state": "unsubmitted",
             "metadata": metadata,
             "links": {
                 "bucket": f"https://zenodo.example/bucket/{dep_id}",
@@ -152,6 +215,14 @@ class FakeZenodo:
         if not self.files[dep_id]:
             return httpx2.Response(400, request=request, json={"message": "no files"})
         self.published.add(dep_id)
+        self.depositions[dep_id]["state"] = "done"
+        # Zenodo mints its own DOI when the metadata does not carry one.
+        meta = self.depositions[dep_id]["metadata"]
+        self.depositions[dep_id]["doi"] = meta.get("doi") or f"10.5072/zenodo.{dep_id}"
+        # Zenodo only creates a concept DOI for a DOI it minted itself, and
+        # versioning is keyed on that concept.
+        if not meta.get("doi"):
+            self.depositions[dep_id]["conceptdoi"] = f"10.5072/zenodo.{dep_id - 1}"
         return httpx2.Response(
             202,
             request=request,

@@ -18,6 +18,26 @@ RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_ATTEMPTS = 5
 MIN_REQUEST_INTERVAL = 1.0  # Zenodo allows ~100 requests/minute.
 
+# Prefixes Zenodo mints and manages itself: production and sandbox.
+ZENODO_DOI_PREFIXES = ("10.5281/", "10.5072/")
+
+
+def is_zenodo_doi(doi: str | None) -> bool:
+    """Report whether Zenodo minted and manages this DOI.
+
+    The answer decides whether a published record can be edited and published
+    again. See :meth:`ZenodoClient.edit_deposition`.
+
+    Examples:
+        >>> is_zenodo_doi("10.5281/zenodo.123")
+        True
+        >>> is_zenodo_doi("10.30965/9783657796823")
+        False
+        >>> is_zenodo_doi(None)
+        False
+    """
+    return bool(doi) and str(doi).startswith(ZENODO_DOI_PREFIXES)
+
 
 class ZenodoError(RuntimeError):
     """A Zenodo API call failed after retries."""
@@ -186,6 +206,87 @@ class ZenodoClient:
         result: dict[str, Any] = self._json_or_raise(response)
         log.info("file uploaded", file=path.name, size=result.get("size"))
         return result
+
+    def edit_deposition(self, deposition_id: int) -> dict[str, Any]:
+        """Unlock a published record so its metadata can be changed.
+
+        Moves the deposition from ``done`` to ``inprogress``. Calling it on a
+        record that is already being edited succeeds again, despite what the
+        API reference says, so no guard is needed.
+
+        Caution: a record whose DOI Zenodo minted cannot be published again
+        after an edit. Zenodo rejects the re-publish with a ``pids.doi``
+        validation error, because the legacy API resubmits a prefix that Zenodo
+        manages. Only a record with an external DOI survives the round trip.
+        Use :meth:`new_version` for the rest. Check with :func:`is_zenodo_doi`
+        before you start.
+        """
+        response = self._request(
+            "POST", f"{self.base_url}/api/deposit/depositions/{deposition_id}/actions/edit"
+        )
+        deposition: dict[str, Any] = self._json_or_raise(response)
+        log.info("deposition unlocked for editing", id=deposition_id)
+        return deposition
+
+    def discard_edit(self, deposition_id: int) -> None:
+        """Abandon an open edit session and restore the published metadata."""
+        response = self._request(
+            "POST", f"{self.base_url}/api/deposit/depositions/{deposition_id}/actions/discard"
+        )
+        if response.status_code not in (200, 201, 204):
+            raise ZenodoError(
+                f"discarding the edit of {deposition_id} failed: {response.status_code}"
+            )
+        log.info("edit discarded", id=deposition_id)
+
+    def new_version(self, deposition_id: int) -> dict[str, Any]:
+        """Open a new version of a published record and return its draft.
+
+        Zenodo returns the new draft directly, not the record the call was made
+        against, so the result is the deposition to add files to and publish.
+        The draft inherits the files of the previous version, and the concept
+        DOI stays the same across versions.
+
+        Only one unpublished new version can exist at a time.
+        """
+        response = self._request(
+            "POST", f"{self.base_url}/api/deposit/depositions/{deposition_id}/actions/newversion"
+        )
+        draft: dict[str, Any] = self._json_or_raise(response)
+        log.info("new version opened", of=deposition_id, draft=draft.get("id"))
+        return draft
+
+    def list_files(self, deposition_id: int) -> list[dict[str, Any]]:
+        """List the files of a deposition, newest metadata first."""
+        response = self._request(
+            "GET", f"{self.base_url}/api/deposit/depositions/{deposition_id}/files"
+        )
+        files: list[dict[str, Any]] = self._json_or_raise(response)
+        return files
+
+    def delete_file(self, deposition_id: int, filename: str) -> bool:
+        """Delete one file from a draft by name. Returns False if it is absent.
+
+        The file has to be found by name first, because deletion works through
+        the file id. The bucket route answers 404 for a file that is present,
+        so it cannot be used here.
+        """
+        match = next(
+            (f for f in self.list_files(deposition_id) if f.get("filename") == filename), None
+        )
+        if match is None:
+            log.info("file already absent", id=deposition_id, file=filename)
+            return False
+        response = self._request(
+            "DELETE",
+            f"{self.base_url}/api/deposit/depositions/{deposition_id}/files/{match['id']}",
+        )
+        if response.status_code not in (200, 204, 404):
+            raise ZenodoError(
+                f"deleting file {filename!r} from {deposition_id} failed: {response.status_code}"
+            )
+        log.info("file deleted", id=deposition_id, file=filename)
+        return True
 
     def publish(self, deposition_id: int) -> dict[str, Any]:
         """Publish a draft deposition. Published records cannot be deleted."""
