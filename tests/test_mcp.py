@@ -46,12 +46,19 @@ def test_list_tools_exposes_the_lean_surface() -> None:
         "submit_to_community",
         "get_deposition",
     }
-    by_name = {t.name: t for t in tools}
     # Read tools must be annotated read-only so hosts can auto-approve them.
-    assert by_name["preview_doi"].annotations.read_only_hint is True
-    assert by_name["check_doi"].annotations.read_only_hint is True
-    assert by_name["get_deposition"].annotations.read_only_hint is True
-    assert by_name["mirror_doi"].annotations.read_only_hint is False
+    read_only = {}
+    for tool in tools:
+        assert tool.annotations is not None, f"{tool.name} carries no annotations"
+        read_only[tool.name] = tool.annotations.read_only_hint
+    assert read_only == {
+        "preview_doi": True,
+        "check_doi": True,
+        "get_deposition": True,
+        "mirror_doi": False,
+        "upload_record": False,
+        "submit_to_community": False,
+    }
 
 
 def test_preview_doi_maps_without_writing(wired: FakeZenodo) -> None:
