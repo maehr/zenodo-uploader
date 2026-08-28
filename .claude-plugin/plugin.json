@@ -1,12 +1,21 @@
 {
   "name": "zenodo-uploader",
-  "description": "Mirror DOIs and upload records to Zenodo, with a skill and an MCP server.",
+  "description": "Create, update, version, and publish Zenodo records, with a skill and an MCP server.",
   "version": "0.1.0",
-  "author": { "name": "Moritz Mähr" },
+  "author": {
+    "name": "Moritz Mähr"
+  },
   "homepage": "https://github.com/maehr/zenodo-uploader",
   "repository": "https://github.com/maehr/zenodo-uploader",
   "license": "AGPL-3.0-only",
-  "keywords": ["zenodo", "doi", "datacite", "crossref", "open-science", "research-data"],
+  "keywords": [
+    "zenodo",
+    "doi",
+    "datacite",
+    "crossref",
+    "open-science",
+    "research-data"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }
