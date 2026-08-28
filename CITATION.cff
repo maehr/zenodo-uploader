@@ -13,10 +13,10 @@ authors:
 repository-code: 'https://github.com/maehr/zenodo-uploader'
 url: 'https://github.com/maehr/zenodo-uploader'
 abstract: >-
-  Mirror DOIs and upload records to Zenodo, from an agent or from the command line.
-  Reads metadata from DataCite or Crossref, maps it onto Zenodo deposit metadata,
-  attaches files, and creates or publishes depositions through the Zenodo REST API.
-  Ships an MCP server, an Agent Skill, and a CLI over one core.
+  A Zenodo client for the command line and for agents. Create a record from your own
+  metadata or by mirroring an existing DOI, attach files, change the metadata, publish
+  it, and publish new versions of it, through the Zenodo REST API. Ships an MCP server,
+  an Agent Skill, and a CLI over one core.
 keywords:
   - zenodo
   - doi

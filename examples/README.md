@@ -1,8 +1,9 @@
 # Examples
 
-`zenodo-uploader` works with any DOI. It resolves metadata from **DataCite**
-first and falls back to **Crossref**, so books, chapters, journal articles,
-datasets, and preprints all map onto Zenodo deposit metadata the same way.
+These examples cover the two ways to create a record: from a DOI that already
+exists, and from metadata you supply. A DOI resolves from **DataCite** first and
+falls back to **Crossref**, so books, chapters, journal articles, datasets, and
+preprints all map onto Zenodo deposit metadata the same way.
 
 ## One-off DOIs
 
@@ -10,11 +11,11 @@ Preview the mapping without touching Zenodo (`--dry-run` makes no writes):
 
 ```bash
 # A Brill monograph (metadata comes from Crossref)
-uvx --from zenodo-uploader zenodo-uploader from-doi 10.30965/9783657796823 --dry-run
+uvx --from zenodo-uploader zenodo create --from-doi 10.30965/9783657796823 --dry-run
 
 # A journal article in the Zeitschrift für digitale Geisteswissenschaften
 # (metadata comes from DataCite)
-uvx --from zenodo-uploader zenodo-uploader from-doi 10.17175/2026_006 --dry-run
+uvx --from zenodo-uploader zenodo create --from-doi 10.17175/2026_006 --dry-run
 ```
 
 Both resolve automatically — you do not tell the tool which registry a DOI
@@ -26,7 +27,7 @@ yields `publication_type: article` with ORCID-tagged authors.
 Attach files and push it to the sandbox as a draft:
 
 ```bash
-uvx --from zenodo-uploader zenodo-uploader from-doi 10.30965/9783657796823 \
+uvx --from zenodo-uploader zenodo create --from-doi 10.30965/9783657796823 \
     --file cover.pdf --sandbox
 ```
 
@@ -42,10 +43,10 @@ describing your software — upload it directly, no DOI resolution involved:
 
 ```bash
 # Preview the exact payload (no writes)
-uvx --from zenodo-uploader zenodo-uploader upload --metadata .zenodo.json --dry-run
+uvx --from zenodo-uploader zenodo create --metadata .zenodo.json --dry-run
 
 # Create a draft on the sandbox with a file attached
-uvx --from zenodo-uploader zenodo-uploader upload --metadata .zenodo.json --file dist.zip --sandbox
+uvx --from zenodo-uploader zenodo create --metadata .zenodo.json --file dist.zip --sandbox
 ```
 
 All fields are sent to Zenodo verbatim, including Zenodo-specific ones
@@ -62,11 +63,11 @@ For many DOIs, write a `manifest.json` (a JSON array of `{doi, files, ...}`)
 and run `zenodo-uploader batch`. The state file makes the run resumable:
 
 ```bash
-uvx --from zenodo-uploader zenodo-uploader batch --manifest manifest.json --state state.json --sandbox
+uvx --from zenodo-uploader zenodo batch --manifest manifest.json --state state.json --sandbox
 ```
 
 ## From an agent
 
-The same jobs run through the MCP server. `preview_doi` replaces `--dry-run`,
-`mirror_doi` replaces `from-doi`, and `upload_record` replaces `upload`. See the
+The same jobs run through the MCP server. `preview_doi` replaces `--dry-run` and
+`create_record` replaces `create`, taking either `metadata` or `doi`. See the
 [README](../README.md) for the full tool list.
