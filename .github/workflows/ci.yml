@@ -5,14 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege by default; no job here needs more.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
@@ -30,3 +34,31 @@ jobs:
 
       - name: Tests (doctests + 100% coverage)
         run: uv run pytest
+
+      - name: Validate the plugin manifest
+        run: |
+          python3 -c "
+          import json, pathlib, sys
+          for name in ('.mcp.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'server.json'):
+              json.loads(pathlib.Path(name).read_text())
+          print('manifests parse')
+          "
+
+      - name: Check that server.json matches the project version
+        run: |
+          project="$(uv version --short)"
+          python3 -c "
+          import json, pathlib, sys
+          d = json.loads(pathlib.Path('server.json').read_text())
+          want = sys.argv[1]
+          got = {d['version'], d['packages'][0]['version']}
+          if got != {want}:
+              raise SystemExit(f'server.json has {got}, pyproject has {want}')
+          print(f'server.json matches {want}')
+          " "$project"
+
+      - name: Check the MCP registry ownership marker
+        # The registry verifies PyPI ownership by finding this string in the
+        # published package README. A silent drop breaks publishing later.
+        run: |
+          grep -q '<!-- mcp-name: io.github.maehr/zenodo-uploader -->' README.md

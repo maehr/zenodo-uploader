@@ -4,15 +4,42 @@
 [![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.13-blue.svg)](pyproject.toml)
 
-> Mirror DOIs and upload records to [Zenodo](https://zenodo.org/) from the command line.
+> A Zenodo client: create, update, version, and publish records, from an agent or from the command line.
 
-**zenodo-uploader** takes a DOI, fetches its metadata from [DataCite](https://api.datacite.org/) (falling back to [Crossref](https://api.crossref.org/)), maps it onto Zenodo deposit metadata, attaches files, and creates (and optionally publishes) the deposition via the [Zenodo REST API](https://developers.zenodo.org/). It reuses the existing DOI by default, so mirrored records keep their canonical identifier instead of getting a new Zenodo DOI. Batch mode mirrors whole DOI lists with a resumable state file.
+<!-- mcp-name: io.github.maehr/zenodo-uploader -->
 
-Any DOI works — see [`examples/`](examples/) for one-off DataCite and Crossref DOIs as well as a full batch pipeline.
+**zenodo-uploader** works with one thing: a Zenodo **deposition**. You create one from your own metadata, attach files, change it, publish it, and later publish a new version of it — all through the [Zenodo REST API](https://developers.zenodo.org/).
 
-## Installation
+```
+create ──> add files ──> update metadata ──> publish
+                                               │
+                                               ├──> update      (metadata only)
+                                               └──> new version (files and metadata)
+```
 
-Requires [uv](https://docs.astral.sh/uv/) and Python ≥ 3.13:
+Mirroring an existing DOI is one way to create a deposition: give it a DOI and the metadata comes from [DataCite](https://api.datacite.org/) or [Crossref](https://api.crossref.org/), with the original identifier kept so the mirror stays citable. It is one source among several, not the point of the tool.
+
+The project ships three interfaces over one core:
+
+| Interface       | Use it when                                              |
+| --------------- | -------------------------------------------------------- |
+| **MCP server**  | An agent does the work. Twelve tools over stdio.         |
+| **Agent Skill** | You use Claude Code and want the procedure as well.      |
+| **CLI**         | You work at a terminal, or you create records in bulk.   |
+
+## Install
+
+> **Not on PyPI yet.** The `uvx --from zenodo-uploader …` commands below start to
+> work with the first release. Until then, clone the repository and replace
+> `uvx --from zenodo-uploader` with `uv run` inside the checkout.
+
+Everything runs through [uv](https://docs.astral.sh/uv/). You need Python 3.13 or later.
+
+```bash
+uvx --from zenodo-uploader zenodo-uploader --help
+```
+
+To work on the code instead, clone the repository:
 
 ```bash
 git clone https://github.com/maehr/zenodo-uploader.git
@@ -20,136 +47,224 @@ cd zenodo-uploader
 uv sync
 ```
 
-## Authentication
+## Authenticate
 
-1. Create a personal access token at <https://zenodo.org/account/settings/applications/tokens/new/> with the scopes **`deposit:write`** and **`deposit:actions`**.
-2. For testing, create a *separate* account and token on <https://sandbox.zenodo.org/> (the sandbox is a fully independent instance).
-3. Export the tokens (or put them in a `.env` file next to your working directory):
+1. Open <https://zenodo.org/account/settings/applications/tokens/new/>.
+2. Select the scopes `deposit:write` and `deposit:actions`.
+3. Create the token, then copy it.
+4. Export the token, or write it into a `.env` file.
 
 ```bash
 export ZENODO_TOKEN=...          # zenodo.org
 export ZENODO_SANDBOX_TOKEN=...  # sandbox.zenodo.org
 ```
 
-## Usage
+The sandbox is a separate service with separate accounts. To rehearse, register again at <https://sandbox.zenodo.org/>.
 
-```bash
-# Inspect the mapped metadata without touching Zenodo
-uv run zenodo-uploader from-doi 10.5555/example-chapter --dry-run
+**Caution: never commit a token, and never paste one into an issue or a log.**
 
-# Create a draft on the sandbox with a file attached
-uv run zenodo-uploader from-doi 10.5555/example-chapter \
-    --file chapter.pdf --community my-community --sandbox
+## Use it from an agent
 
-# Publish on the sandbox
-uv run zenodo-uploader from-doi 10.5555/example-chapter \
-    --file chapter.pdf --sandbox --publish
+### As a plugin in Claude Code
 
-# Publish on production (interactive confirmation: published records
-# on zenodo.org can never be deleted)
-uv run zenodo-uploader from-doi 10.5555/example-chapter --file chapter.pdf --publish
+One install gives you the skill and the server together:
 
-# Check whether a DOI is already mirrored
-uv run zenodo-uploader check 10.5555/example-chapter
-
-# Upload raw Zenodo metadata JSON, e.g. a .zenodo.json (no DataCite involved).
-# Fields are sent verbatim; omit "doi" to mint a new DOI, include it to keep one.
-uv run zenodo-uploader upload --metadata .zenodo.json --file data.csv --sandbox
-
-# Mirror a whole manifest, resumable via the state file
-uv run zenodo-uploader batch --manifest manifest.json --state state.json --sandbox
+```
+/plugin marketplace add maehr/zenodo-uploader
+/plugin install zenodo-uploader@maehr
 ```
 
-### Safety ladder
+### As a plain MCP server
 
-1. `--dry-run` — print the mapped metadata; no writes at all.
-2. default — create a **draft** deposition (drafts can be deleted).
-3. `--publish` — publish; on production this asks you to type `PUBLISH` unless `--yes` is given.
+Add this to your MCP client configuration:
 
-### Manifest format
+```json
+{
+  "mcpServers": {
+    "zenodo": {
+      "command": "uvx",
+      "args": ["--from", "zenodo-uploader", "zenodo-mcp"],
+      "env": { "ZENODO_SANDBOX_TOKEN": "..." }
+    }
+  }
+}
+```
 
-`batch` reads a JSON array; `files` are local paths, everything except `doi` is optional:
+The server offers twelve tools:
+
+| Tool                  | Writes | Purpose                                               |
+| --------------------- | ------ | ----------------------------------------------------- |
+| `preview_doi`         | no     | Show the Zenodo metadata that a DOI maps to.          |
+| `check_doi`           | no     | Report whether a DOI is already on Zenodo.            |
+| `get_deposition`      | no     | Read the state, DOI, title, and link of a deposition. |
+| `list_files`          | no     | List the files attached to a deposition.              |
+| `create_record`       | yes    | Create from your own metadata, or by mirroring a DOI. |
+| `update_record`       | yes    | Replace the metadata of a deposition.                 |
+| `add_files`           | yes    | Add files to a deposition.                            |
+| `remove_file`         | yes    | Remove one file from a draft.                         |
+| `publish_record`      | yes    | Publish an existing draft.                            |
+| `new_version`         | yes    | Open a new version of a published record.             |
+| `submit_to_community` | yes    | Send a draft to a community for inclusion.            |
+| `delete_draft`        | yes    | Delete a draft.                                       |
+
+Every tool works against the sandbox unless you pass `sandbox: false`.
+
+**Caution: a published record on zenodo.org is permanent.** The server therefore refuses a production publish unless both of these are true:
+
+- you started the server with `ZENODO_ALLOW_PRODUCTION_PUBLISH=1`, and
+- the call passes `confirm="PUBLISH"` (or `confirm="DELETE"` to delete a draft).
+
+## Use it from the command line
+
+The command is `zenodo` (`zenodo-uploader` also works).
+
+```bash
+# Create from your own metadata. Every field goes to Zenodo unchanged.
+uvx --from zenodo-uploader zenodo create --metadata record.json --file data.csv --sandbox
+
+# Create by mirroring an existing DOI, keeping that DOI
+uvx --from zenodo-uploader zenodo create --from-doi 10.30965/9783657796823 --file chapter.pdf --sandbox
+
+# Show what a DOI maps to. This writes nothing.
+uvx --from zenodo-uploader zenodo create --from-doi 10.30965/9783657796823 --dry-run
+
+# Work on an existing deposition
+uvx --from zenodo-uploader zenodo files ls 1234567 --sandbox
+uvx --from zenodo-uploader zenodo files add 1234567 extra.csv --sandbox
+uvx --from zenodo-uploader zenodo files rm 1234567 old.csv --sandbox
+uvx --from zenodo-uploader zenodo update 1234567 --metadata record.json --sandbox
+
+# Publish it, then publish a new version later
+uvx --from zenodo-uploader zenodo publish 1234567 --sandbox
+uvx --from zenodo-uploader zenodo new-version 1234567 --file v2.csv --sandbox --publish
+
+# Send a draft to a community, and clean up a draft you do not want
+uvx --from zenodo-uploader zenodo submit 1234567 --community my-community --sandbox
+uvx --from zenodo-uploader zenodo delete 1234567 --sandbox
+
+# Ask whether a DOI is already mirrored
+uvx --from zenodo-uploader zenodo check 10.30965/9783657796823
+
+# Create many records from one list, resumably
+uvx --from zenodo-uploader zenodo batch --manifest manifest.json --state state.json --sandbox
+```
+
+### The safety ladder
+
+Climb one rung at a time.
+
+1. `--dry-run` prints the mapped metadata and writes nothing.
+2. The default creates a **draft**, which you can still delete.
+3. `--publish` publishes. On production the command asks you to type `PUBLISH`, unless you pass `--yes`.
+
+## Create many records at once
+
+`batch` reads a JSON array. Each entry gives exactly **one** of `doi`, `metadata`, or `metadata_file`, so one list can mix mirrored DOIs with records of your own.
 
 ```json
 [
+  { "doi": "10.30965/9783657796823", "files": ["files/chapter.pdf"] },
+  { "id": "dataset-2024", "metadata_file": "records/ds.json", "files": ["data.csv"] },
   {
-    "doi": "10.5555/example-chapter",
-    "files": ["files/example-chapter.pdf", "files/example-chapter.html"],
-    "community": "my-community",
-    "description": "<p>Optional HTML description override.</p>",
-    "related": [{ "relation": "isPartOf", "identifier": "10.5555/example-book" }]
+    "id": "poster-2024",
+    "metadata": {
+      "title": "Poster",
+      "upload_type": "poster",
+      "description": "<p>A poster.</p>",
+      "publication_date": "2024-01-01",
+      "creators": [{ "name": "Doe, Jane" }]
+    },
+    "files": ["poster.pdf"]
   }
 ]
 ```
 
-The state file records one row per DOI (`draft`, `published`, `exists`, or `error`); rerunning the batch skips finished rows and retries errors.
+The state file records one row per entry, keyed by `id`, else the DOI, else the file path. A duplicate key is rejected when the manifest loads, before any request goes out. A second run skips the rows that finished (`published`, `submitted`, `exists`) and retries the rows that failed.
 
-### Metadata mapping
+**Caution: keep the state file.** A DOI entry is also checked against Zenodo itself, so it is safe to rerun. An entry that carries its own metadata has nothing to check against, so the state file is its only guard. Delete it, rerun, and those records are created a second time.
 
-DOIs are resolved from DataCite first, then Crossref; both registries map onto the same fields:
+## How a mirrored DOI maps
 
-| Source (DataCite / Crossref)                              | Zenodo                                  |
-| --------------------------------------------------------- | --------------------------------------- |
-| `titles[0].title` / `title[0]`                            | `title`                                 |
-| `creators` / `author` + `editor` (name, ORCID)            | `creators`                              |
-| `types.resourceTypeGeneral` / `type`                      | `upload_type` / `publication_type`      |
-| `rightsList[].rightsIdentifier` / `license[].URL`         | `license`                               |
-| `Issued` date or `publicationYear` / `issued`             | `publication_date` (full date or `YYYY-01-01`) |
-| `publisher`                                               | `imprint_publisher` (publications)      |
-| `relatedIdentifiers`                                      | `related_identifiers`                   |
-| `url` / `resource.primary.URL` (landing page)            | `related_identifiers` (`isIdenticalTo`) |
-| DOI                                                       | `doi` (kept — no new DOI is minted)     |
+This applies to `--from-doi` only. DataCite answers first. If DataCite does not know the DOI, Crossref answers. Both registries map onto the same fields.
 
-Zenodo requires a non-empty description; when the registry has none, a minimal HTML description with the citation and links is synthesized (override with `--description`).
+| Source (DataCite / Crossref)                      | Zenodo                                        |
+| ------------------------------------------------- | --------------------------------------------- |
+| `titles[0].title` / `title[0]`                    | `title`                                       |
+| `creators` / `author` and `editor` (name, ORCID)  | `creators`                                    |
+| `types.resourceTypeGeneral` / `type`              | `upload_type` and `publication_type`          |
+| `rightsList[].rightsIdentifier` / `license[].URL` | `license`                                     |
+| `Issued` date or `publicationYear` / `issued`     | `publication_date`, as a date or `YYYY-01-01` |
+| `publisher`                                       | `imprint_publisher`, for publications         |
+| `relatedIdentifiers`                              | `related_identifiers`                         |
+| `url` / `resource.primary.URL`                    | `related_identifiers`, as `isIdenticalTo`     |
+| DOI                                               | `doi`, kept unchanged                         |
 
-### Uploading a `.zenodo.json`
+Zenodo rejects a record with an empty description. Many DataCite records carry none, so the tool builds a short one from the title, the publisher, and the links. Pass `--description` to replace it.
 
-`upload` takes any Zenodo deposit metadata JSON, including a
-[`.zenodo.json`](https://help.zenodo.org/docs/github/describe-software/zenodo-json/)
-file (fields at the top level or wrapped in `{"metadata": {...}}`). Every field is
-forwarded to Zenodo verbatim — Zenodo-specific ones such as `version`,
-`access_right`, `contributors`, `grants`, and `communities` are preserved. `title`,
-`upload_type`, `description`, `publication_date`, and each creator's `name` are
-required; a missing one fails with a clear message before any request is sent. Omit
-the `doi` field to have Zenodo mint a new DOI, or include it to keep an existing one.
-See [`examples/.zenodo.json`](examples/.zenodo.json).
+## Supply your own metadata
 
-### Community curation
+`create --metadata` takes any Zenodo deposit metadata, including a [`.zenodo.json`](https://help.zenodo.org/docs/github/describe-software/zenodo-json/) file. The fields sit at the top level, or inside `{"metadata": {...}}`.
 
-A record does not join a community through its metadata. Zenodo stores the legacy `communities` deposit field but never acts on it, so `--community` attaches a community-submission **review** to the draft instead.
+Every field goes to Zenodo unchanged, so Zenodo-specific fields such as `version`, `access_right`, `contributors`, and `grants` survive. Five fields are required: `title`, `upload_type`, `description`, `publication_date`, and a `name` for each creator. A missing field fails with a clear message, before any request is sent.
 
-| `--community` | `--publish` | result                                          | state file  |
-| ------------- | ----------- | ----------------------------------------------- | ----------- |
-| no            | no          | private draft                                   | `draft`     |
-| no            | yes         | published record                                | `published` |
-| yes           | no          | private draft with an unsubmitted review        | `draft`     |
-| yes           | yes         | inclusion request awaiting a curator            | `submitted` |
+Omit the `doi` field to let Zenodo mint a DOI. Include it to keep an identifier that you already own. See [`examples/.zenodo.json`](examples/.zenodo.json).
 
-A submitted request is not a published record. A curator of the community must accept it in the community's *Requests* tab; acceptance publishes the record. While the request is open, Zenodo refuses both a direct publish and a delete of the draft.
+## Change a record that already exists
 
-## Development
+Which command works depends on who minted the DOI. The two cover opposite cases, and each refuses the other's case with a message naming the right one.
+
+| The record                        | Change the metadata | Add or change files |
+| --------------------------------- | ------------------- | ------------------- |
+| Draft, not yet published          | `update`            | `files add`         |
+| Published, DOI minted by Zenodo   | **`new-version`**   | `new-version`       |
+| Published, DOI from somewhere else| **`update`**        | `new-version` fails |
+
+Zenodo versions a record through its *concept DOI*, and it creates one only for a DOI it minted itself. A mirrored record keeps an external DOI, so it has no concept DOI and Zenodo will not version it. In exchange, Zenodo lets you edit and re-publish that record, which it refuses for its own DOIs.
+
+A new version keeps the concept DOI, so the record stays one citable series. Only one unpublished new version can exist at a time.
+
+**Never create a second record to correct a published one** — that mints a duplicate.
+
+## Submit to a community
+
+A record does not join a community through its metadata. Zenodo stores the legacy `communities` deposit field but never acts on it. A record joins through a review request instead, and this tool creates that request for you.
+
+| `--community` | `--publish` | Result                                 | State file  |
+| ------------- | ----------- | -------------------------------------- | ----------- |
+| no            | no          | a private draft                        | `draft`     |
+| no            | yes         | a published record                     | `published` |
+| yes           | no          | a private draft with an unsent request | `draft`     |
+| yes           | yes         | a request that waits for a curator     | `submitted` |
+
+A submitted request is not a published record. A curator of the community must accept it in the community's *Requests* tab, and that acceptance publishes the record. While the request is open, Zenodo refuses to publish the draft and refuses to delete it.
+
+## Examples
+
+See [`examples/`](examples/) for a DataCite DOI, a Crossref DOI, and a `.zenodo.json` file.
+
+## Develop
 
 ```bash
-uv run pytest            # tests + doctests, 100% coverage enforced
+uv run pytest            # tests and doctests, 100% coverage enforced
 uv run ruff check .      # lint
 uv run ruff format .     # format
-uv run ty check          # type check
+uv run ty check          # types
 uv run prek run --all-files
 ```
 
-See [AGENTS.md](AGENTS.md) for the tooling specification. Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`uv run cz commit`); the changelog is generated with [git-cliff](https://git-cliff.org/).
+Read [AGENTS.md](AGENTS.md) for the tooling specification. Commits follow [Conventional Commits](https://www.conventionalcommits.org/). Run `uv run cz commit` to write one. [git-cliff](https://git-cliff.org/) generates the changelog.
 
-## Contributing
+## Contribute
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md). Never paste your Zenodo tokens into issues or logs.
+To report a vulnerability, read [SECURITY.md](SECURITY.md). Report it privately.
 
-## Citation
+## Cite
 
-If you use zenodo-uploader, please cite it using the metadata in [CITATION.cff](CITATION.cff) (GitHub's "Cite this repository" button).
+To cite this software, use the metadata in [CITATION.cff](CITATION.cff). GitHub renders it behind the "Cite this repository" button.
 
 ## License
 

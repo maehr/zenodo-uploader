@@ -39,6 +39,40 @@ uv run prek run --all-files
    `uv run cz commit`. The changelog is generated with [git-cliff](https://git-cliff.org/).
 5. Make sure the check suite above passes, then request review.
 
+## Releasing
+
+Only a maintainer runs these steps. Do not run them to try them out.
+
+**Caution: a release to PyPI and to the MCP Registry is public and permanent. Check the version first.**
+
+1. Bump the version and write the tag.
+
+   ```bash
+   uv run cz bump
+   ```
+
+2. Set the same version in `server.json`, in both `version` and `packages[0].version`.
+3. Commit that change, then push the branch and the tag.
+
+   ```bash
+   git push --follow-tags
+   ```
+
+   The `Release` workflow builds the distributions, runs the full gate, and waits
+   for approval on the `pypi` environment before it publishes.
+
+4. Publish the server entry to the MCP Registry.
+
+   ```bash
+   mcp-publisher login github   # the namespace is io.github.maehr/*
+   mcp-publisher publish        # reads server.json
+   ```
+
+   The registry verifies ownership by looking for `<!-- mcp-name: io.github.maehr/zenodo-uploader -->`
+   in the published README. CI checks that the marker is present.
+
+5. Write the release notes on GitHub with `uv run git-cliff`.
+
 ## Reporting security issues
 
 Please do **not** open a public issue for vulnerabilities. See [SECURITY.md](SECURITY.md).
