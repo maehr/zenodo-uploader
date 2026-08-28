@@ -132,8 +132,9 @@ Omit the `doi` field and Zenodo mints a DOI for you. Include it to keep an
 identifier that you already own.
 
 When you mirror, the tool keeps the original DOI by default, so the mirror
-stays citable under one identifier. Pass `--mint-doi`, or `keep_doi=false`, to
-mint a new one instead.
+stays citable under one identifier. Pass `--mint-doi` to the CLI, or
+`keep_doi=false` to `create_record`, to mint a new one instead. A manifest
+entry can set `"keep_doi": false` for the same effect.
 
 Many DataCite records carry no description. The tool then builds a short one
 from the title, the publisher, and the links.
