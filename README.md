@@ -20,6 +20,10 @@ The project ships three interfaces over one core:
 
 ## Install
 
+> **Not on PyPI yet.** The `uvx --from zenodo-uploader …` commands below start to
+> work with the first release. Until then, clone the repository and replace
+> `uvx --from zenodo-uploader` with `uv run` inside the checkout.
+
 Everything runs through [uv](https://docs.astral.sh/uv/). You need Python 3.13 or later.
 
 ```bash
