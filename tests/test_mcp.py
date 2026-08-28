@@ -59,6 +59,18 @@ def test_list_tools_exposes_the_lean_surface() -> None:
         "upload_record": False,
         "submit_to_community": False,
     }
+    # Every write tool can reach an irreversible state, so a host must be told
+    # to prompt rather than auto-approve.
+    destructive = {
+        t.name: t.annotations.read_only_hint is False and t.annotations.destructive_hint
+        for t in tools
+        if t.annotations is not None and t.annotations.read_only_hint is False
+    }
+    assert destructive == {
+        "mirror_doi": True,
+        "upload_record": True,
+        "submit_to_community": True,
+    }
 
 
 def test_preview_doi_maps_without_writing(wired: FakeZenodo) -> None:
@@ -278,3 +290,39 @@ def test_upload_record_refuses_an_unconfirmed_production_publish(
     with pytest.raises(ToolError, match="Refusing to publish"):
         mcp.upload_record(_metadata(), sandbox=False, publish=True)
     assert wired.depositions == {}
+
+
+# --- failures must reach the caller as ToolError, never as a raw exception ---
+
+
+def _offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every registry request fail the way a dead network does."""
+
+    def boom(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectTimeout("registry unreachable", request=request)
+
+    monkeypatch.setattr(
+        mcp, "_registry_client", lambda: httpx2.Client(transport=httpx2.MockTransport(boom))
+    )
+
+
+def test_preview_doi_reports_a_network_failure(
+    wired: FakeZenodo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _offline(monkeypatch)
+    with pytest.raises(ToolError, match="cannot resolve"):
+        mcp.preview_doi("10.5555/example-chapter")
+
+
+def test_mirror_doi_reports_a_network_failure(
+    wired: FakeZenodo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _offline(monkeypatch)
+    with pytest.raises(ToolError):
+        mcp.mirror_doi("10.5555/example-chapter")
+
+
+def test_check_doi_surfaces_a_zenodo_error(wired: FakeZenodo) -> None:
+    wired.fail_next = 400
+    with pytest.raises(ToolError):
+        mcp.check_doi("10.5555/example-chapter")

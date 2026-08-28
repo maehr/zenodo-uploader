@@ -45,7 +45,10 @@ server = MCPServer(
 ALLOW_PRODUCTION_PUBLISH_ENV = "ZENODO_ALLOW_PRODUCTION_PUBLISH"
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=True)
-WRITES = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
+# destructive_hint is per tool, not per call. Each of these can publish, and a
+# published record cannot be withdrawn, so the annotation must let a host
+# prompt rather than auto-approve.
+WRITES = ToolAnnotations(read_only_hint=False, destructive_hint=True, open_world_hint=True)
 
 SandboxArg = Annotated[
     bool,
@@ -136,8 +139,10 @@ def preview_doi(
     try:
         with _registry_client() as registry:
             record = fetch_work(registry, doi)
-    except httpx2.HTTPStatusError as exc:
-        raise ToolError(f"cannot resolve {doi}: {exc.response.status_code}") from exc
+    except httpx2.HTTPError as exc:
+        # HTTPError covers both a bad status and a transport failure such as a
+        # timeout, so neither escapes as an unhandled exception.
+        raise ToolError(f"cannot resolve {doi}: {exc}") from exc
     metadata = work_to_zenodo(record, description=description, keep_doi=keep_doi)
     return metadata.to_payload()["metadata"]
 
@@ -151,9 +156,12 @@ def check_doi(
 
     Use this before mirroring to avoid creating a duplicate.
     """
-    with _client(sandbox) as client:
-        records = client.find_records_by_doi(doi)
-        drafts = client.find_depositions_by_doi(doi)
+    try:
+        with _client(sandbox) as client:
+            records = client.find_records_by_doi(doi)
+            drafts = client.find_depositions_by_doi(doi)
+    except ZenodoError as exc:
+        raise ToolError(str(exc)) from exc
     return {
         "doi": doi,
         "published": [r.get("links", {}).get("html") for r in records],
@@ -217,7 +225,7 @@ def mirror_doi(
     try:
         with _client(sandbox) as client, _registry_client() as registry:
             return mirror_entry(client, registry, entry, publish=publish)
-    except ZenodoError as exc:
+    except (ZenodoError, httpx2.HTTPError) as exc:
         raise ToolError(str(exc)) from exc
 
 
