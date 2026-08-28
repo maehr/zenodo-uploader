@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local state
+.env
+state.json
+
+# Downloaded mirror files
+examples/*/files/
+examples/*/manifest.json
+
+# OS
+.DS_Store

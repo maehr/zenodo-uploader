@@ -1,0 +1,34 @@
+{
+  "title": "zenodo-uploader (example)",
+  "upload_type": "software",
+  "description": "<p>An example <code>.zenodo.json</code> for uploading software to Zenodo from the command line. No <code>doi</code> field is present, so Zenodo mints a fresh DOI on publish.</p>",
+  "publication_date": "2026-07-07",
+  "creators": [
+    {
+      "name": "Doe, Jane",
+      "orcid": "0000-0002-1825-0097",
+      "affiliation": "University of Basel"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Roe, Rick",
+      "type": "Editor",
+      "orcid": "0000-0002-1825-0098"
+    }
+  ],
+  "version": "1.0.0",
+  "access_right": "open",
+  "license": "agpl-3.0-only",
+  "language": "eng",
+  "keywords": ["zenodo", "doi", "cli"],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/maehr/zenodo-uploader",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ],
+  "grants": [{ "id": "10.13039/501100000780::283595" }],
+  "communities": [{ "identifier": "zenodo" }]
+}

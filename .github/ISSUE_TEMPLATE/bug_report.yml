@@ -1,0 +1,40 @@
+name: 🐛 Bug report
+description: Report something that is not working as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! ⚠️ **Never paste your
+        `ZENODO_TOKEN` or `ZENODO_SANDBOX_TOKEN`** — redact tokens from any command
+        output or logs before sharing.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The command you ran (with tokens redacted) and what you did.
+      placeholder: |
+        uv run zenodo-uploader from-doi 10.xxxx/yyyy --dry-run
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: The release tag or commit hash, Python version, and OS.
+    validations:
+      required: false
